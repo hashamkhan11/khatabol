@@ -645,14 +645,14 @@ begin
 
   return query
   select e.id, e.entry_date, e.kind, e.note, e.method, e.amount,
-         (v_opening + sum(e.amount) over (order by e.entry_date, e.created_at, e.id))::numeric
+         (v_opening + sum(e.amount) over (order by e.entry_date, e.seq))::numeric
   from khata_entries e
   where e.party_id = p_party_id
     and (p_from is null or e.entry_date >= p_from)
     and (p_to is null or e.entry_date <= p_to)
     and (p_include_cancelled
          or (e.kind <> 'reversal' and not exists (select 1 from khata_entries r where r.reverses_id = e.id)))
-  order by e.entry_date, e.created_at, e.id;
+  order by e.entry_date, e.seq;
 end $$;
 
 -- Stock per cloth type as of a date (default: everything entered).

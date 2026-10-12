@@ -162,10 +162,12 @@ create table khata_entries (
   reverses_id uuid unique references khata_entries (id),
   source      entry_source not null default 'app',
   source_ref  text,
-  -- clock_timestamp, not now(): lines written in one call keep their order
+  -- seq orders lines written on the same day, even inside one call
+  -- where timestamps can be equal
+  seq         bigint generated always as identity,
   created_at  timestamptz not null default clock_timestamp()
 );
-create index khata_party_date_idx on khata_entries (party_id, entry_date);
+create index khata_party_date_idx on khata_entries (party_id, entry_date, seq);
 create index khata_owner_idx on khata_entries (owner_id);
 create index khata_deal_idx on khata_entries (deal_id);
 create index khata_expense_idx on khata_entries (expense_id);
