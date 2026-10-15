@@ -25,8 +25,8 @@ WhatsApp bot only call these functions, so both always follow the same rules.
 | Manual correction | `record_adjustment` |
 | Cancel a payment or correction | `reverse_entry` |
 | Expense | `record_expense`, `cancel_expense` |
-| Opening stock / wastage | `record_stock_adjustment`, `cancel_stock_adjustment` |
-| Reports | `party_balances` (view), `party_statement`, `stock_summary`, `profit_report` |
+| Stock in / out outside a deal (kind: opening, found, other_in, wastage, shortage, own_use, sample, other_out) | `record_stock_adjustment`, `cancel_stock_adjustment` |
+| Reports | `party_balances` (view), `khata_lines` (view), `party_statement`, `stock_summary`, `stock_history`, `profit_report` |
 
 ## Files
 

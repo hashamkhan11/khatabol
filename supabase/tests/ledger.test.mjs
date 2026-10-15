@@ -102,12 +102,46 @@ describe('khata balances', () => {
     await L.rpc('record_payment', { p_party_id: rashid, p_direction: 'out', p_amount: 10000, p_date: '2026-10-06' });
 
     const rows = (await L.rpc('party_statement', { p_party_id: rashid, p_from: '2026-10-01' })).map(nums);
-    assert.deepEqual(rows.map((r) => [r.note, r.amount, r.balance]), [
-      ['Balance brought forward', -10000, -10000],
-      ['Purchase: Used cloth 200 kg @ 100', -20000, -30000],
-      ['Paid on deal — Purchase: Used cloth 200 kg @ 100', 5000, -25000],
-      ['Payment made', 10000, -15000],
+    assert.deepEqual(rows.map((r) => [r.kind, r.amount, r.balance]), [
+      [null, -10000, -10000],
+      ['purchase', -20000, -30000],
+      ['payment_out', 5000, -25000],
+      ['payment_out', 10000, -15000],
     ]);
+  });
+
+  // Clients word the lines in their own language, so lines carry facts, not text.
+  test('statement lines carry the deal facts; note holds only typed text', async () => {
+    await purchase({
+      weight_kg: 200, rate: 100, paid_now: 5000, paid_method: 'bank',
+      costs: [{ description: 'Loading', amount: 500, charged_to_id: rashid }],
+    });
+    await L.rpc('record_payment', { p_party_id: rashid, p_direction: 'out', p_amount: 1000, p_note: 'via Akram' });
+
+    const rows = (await L.rpc('party_statement', { p_party_id: rashid })).map(nums);
+    assert.deepEqual(
+      rows.map((r) => [r.kind, r.deal_kind, r.item_name, r.weight_kg, r.rate, r.method, r.note]),
+      [
+        ['purchase', 'purchase', 'Used cloth', 200, 100, null, null],
+        ['deal_cost', 'purchase', 'Used cloth', 200, 100, null, 'Loading'],
+        ['payment_out', 'purchase', 'Used cloth', 200, 100, 'bank', null],
+        ['payment_out', null, null, null, null, 'cash', 'via Akram'],
+      ],
+    );
+  });
+
+  test('a cancelled line says what it cancelled and why', async () => {
+    const pay = await L.one('record_payment', { p_party_id: rashid, p_direction: 'in', p_amount: 700 });
+    await L.rpc('reverse_entry', { p_entry_id: pay, p_reason: 'typed twice' });
+
+    const rows = await L.rpc('party_statement', { p_party_id: rashid, p_include_cancelled: true });
+    assert.deepEqual(
+      rows.map((r) => [r.kind, r.reversed_kind, r.note, r.cancelled]),
+      [
+        ['payment_in', null, null, true],
+        ['reversal', 'payment_in', 'typed twice', true],
+      ],
+    );
   });
 });
 
@@ -171,6 +205,14 @@ describe('commission deals', () => {
     assert.equal(await L.balance(rashid), -98000);
     assert.equal(await L.balance(akram), 100000);
     assert.equal((await profit()).net_profit, 2000);
+  });
+
+  test('each side of a commission deal sees the other party', async () => {
+    await brokered({ weight_kg: 1000, rate: 100, goods_through_me: true, commissions: [] });
+    const [seller] = await L.rpc('party_statement', { p_party_id: rashid });
+    const [buyer] = await L.rpc('party_statement', { p_party_id: akram });
+    assert.deepEqual([seller.deal_kind, seller.kind, seller.counterparty_name], ['commission', 'purchase', 'Akram']);
+    assert.deepEqual([buyer.deal_kind, buyer.kind, buyer.counterparty_name], ['commission', 'sale', 'Rashid']);
   });
 
   test('fixed commission works without weight or rate', async () => {
@@ -246,14 +288,44 @@ describe('stock and profit', () => {
     assert.equal((await profit()).sales_amount, 0);
   });
 
+  const adjust = (kind, kg, p = {}) =>
+    L.one('record_stock_adjustment', { p_item_id: cloth, p_kind: kind, p_weight_kg: kg, ...p });
+
   test('opening stock and wastage', async () => {
-    await L.rpc('record_stock_adjustment', { p_item_id: cloth, p_weight_kg: 200, p_cost_per_kg: 90, p_date: '2026-09-01' });
-    await L.rpc('record_stock_adjustment', { p_item_id: cloth, p_weight_kg: -20, p_date: '2026-10-01', p_reason: 'wet, thrown away' });
+    await adjust('opening', 200, { p_cost_per_kg: 90, p_date: '2026-09-01' });
+    await adjust('wastage', 20, { p_date: '2026-10-01', p_reason: 'wet, thrown away' });
     assert.equal((await stock()).weight_kg, 180);
     assert.equal((await profit()).stock_losses, 1800);
-    await assert.rejects(
-      L.rpc('record_stock_adjustment', { p_item_id: cloth, p_weight_kg: 10 }),
-      /added_stock_needs_cost/,
+  });
+
+  test('the kind decides whether stock comes in or goes out', async () => {
+    await adjust('found', 50, { p_cost_per_kg: 100 });
+    await adjust('sample', 5, { p_cost_per_kg: 999 });
+    const [row] = await L.query('select kind, weight_kg, cost_per_kg from stock_adjustments where weight_kg < 0');
+    assert.deepEqual(nums(row), { kind: 'sample', weight_kg: -5, cost_per_kg: null });
+    assert.equal((await stock()).weight_kg, 45);
+
+    await assert.rejects(adjust('opening', 10), /needs a cost per kg/);
+    await assert.rejects(adjust('wastage', -10), /weight must be positive/);
+  });
+
+  test('stock register lists every move with kg in hand after it', async () => {
+    await adjust('opening', 100, { p_cost_per_kg: 90, p_date: '2026-09-01' });
+    await purchase({ weight_kg: 500, rate: 120 });
+    await sale({ deal_date: '2026-10-02', weight_kg: 200, rate: 150 });
+    await adjust('shortage', 10, { p_date: '2026-10-03', p_reason: 'recount' });
+    const cancelled = await sale({ deal_date: '2026-10-04', weight_kg: 50, rate: 150 });
+    await L.rpc('cancel_deal', { p_deal_id: cancelled });
+
+    const rows = (await L.rpc('stock_history', { p_item_id: cloth })).map(nums);
+    assert.deepEqual(
+      rows.map((r) => [r.kind, r.party_name, r.weight_kg, r.qty_after, r.reason]),
+      [
+        ['opening', null, 100, 100, null],
+        ['purchase', 'Rashid', 500, 600, null],
+        ['sale', 'Akram', -200, 400, null],
+        ['shortage', null, -10, 390, 'recount'],
+      ],
     );
   });
 
