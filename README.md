@@ -65,7 +65,7 @@ The data model covers:
 ## Roadmap
 
 - [x] **1. Ledger database:** schema, business functions and a test suite
-- [ ] **2. Mobile app:** Flutter screens on Supabase, with phone OTP login
+- [x] **2. Mobile app:** Flutter app on Supabase: khata, deals, stock, expenses and profit
 - [ ] **3. WhatsApp bot (text):** Urdu, Roman Urdu and English messages, with confirmation before saving
 - [ ] **4. Voice notes and screenshots**
 - [ ] **5. Queries and summaries:** "Rashid ka balance?", statements and a daily summary
@@ -76,10 +76,13 @@ The data model covers:
 supabase/
   migrations/   schema and ledger functions (deployed to Supabase)
   tests/        tests on an in-memory Postgres (PGlite)
+app/
+  lib/data/     models and the repository that calls the ledger functions
+  lib/screens/  khata, deals, stock, expenses and profit screens
+  test/         unit tests for the deal preview and parsing
 ```
 
-`app/` (Flutter) and `bot/` (WhatsApp webhook) will be added as the roadmap
-progresses.
+`bot/` (WhatsApp webhook) will be added in step 3.
 
 ## Running the tests
 
@@ -94,6 +97,15 @@ npm test
 ```
 
 See [supabase/README.md](supabase/README.md) for the list of functions.
+
+App tests (Flutter 3.38+):
+
+```
+cd app
+flutter test
+```
+
+See [app/README.md](app/README.md) to run the app.
 
 ## License
 
