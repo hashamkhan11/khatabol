@@ -101,14 +101,14 @@ void main() {
     });
 
     test('names the first missing field', () {
-      expect(DealDraft(kind: DealKind.purchase).validate(), 'Choose the supplier');
-      expect((purchase()..itemId = null).validate(), 'Choose the cloth type');
-      expect((purchase()..rate = null).validate(), 'Enter the rate');
+      expect(DealDraft(kind: DealKind.purchase).validate(), 'Supplier chunein');
+      expect((purchase()..itemId = null).validate(), 'Kapre ki qisam chunein');
+      expect((purchase()..rate = null).validate(), 'Rate likhein');
     });
 
     test('commission needs a different buyer and a commission line', () {
-      expect((commission()..buyerId = 'rashid').validate(), 'Seller and buyer must be different');
-      expect(commission().validate(), 'Add the commission');
+      expect((commission()..buyerId = 'rashid').validate(), 'Bechne wala aur khareedne wala alag hon');
+      expect(commission().validate(), 'Commission likhein');
     });
 
     test('money through me needs weight and rate', () {
@@ -116,12 +116,12 @@ void main() {
         ..goodsThroughMe = true
         ..rate = null
         ..commissions = [CommissionDraft(partyId: 'rashid', mode: CommissionMode.fixed, value: 500)];
-      expect(d.validate(), 'Enter weight and rate when the money goes through you');
+      expect(d.validate(), 'Paise aap ke zariye hon to wazan aur rate likhein');
     });
 
     test('costs need a description and an amount', () {
-      expect((purchase()..costs = [CostDraft(amount: 100)]).validate(), 'Every cost needs a description');
-      expect((purchase()..costs = [CostDraft(description: 'Freight')]).validate(), 'Every cost needs an amount');
+      expect((purchase()..costs = [CostDraft(amount: 100)]).validate(), 'Har kharchay ka naam likhein');
+      expect((purchase()..costs = [CostDraft(description: 'Freight')]).validate(), 'Har kharchay ki raqam likhein');
     });
   });
 

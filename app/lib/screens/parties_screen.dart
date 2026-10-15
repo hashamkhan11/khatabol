@@ -36,7 +36,7 @@ class _PartiesScreenState extends State<PartiesScreen> {
         title: const Text('Khata'),
         actions: [
           IconButton(
-            tooltip: _showArchived ? 'Hide archived' : 'Show archived',
+            tooltip: _showArchived ? 'Archive chhupayein' : 'Archive dikhayein',
             icon: Icon(_showArchived ? Icons.inventory : Icons.inventory_outlined),
             onPressed: () => setState(() => _showArchived = !_showArchived),
           ),
@@ -46,7 +46,7 @@ class _PartiesScreenState extends State<PartiesScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _open(const PartyFormScreen()),
         icon: const Icon(Icons.person_add),
-        label: const Text('Party'),
+        label: const Text('Nayi party'),
       ),
       body: AsyncView<List<PartyBalance>>(
         key: _view,
@@ -74,11 +74,11 @@ class _PartiesScreenState extends State<PartiesScreen> {
             child: ListView(
               padding: const EdgeInsets.only(bottom: 88),
               children: [
-                _Totals(toReceive: toReceive, toPay: toPay),
+                TotalsRow(toReceive: toReceive, toPay: toPay),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: TextField(
-                    decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search name or city'),
+                    decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Naam ya shehar talaash karein'),
                     onChanged: (s) => setState(() => _search = s),
                   ),
                 ),
@@ -86,9 +86,9 @@ class _PartiesScreenState extends State<PartiesScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: SegmentedButton<_Filter>(
                     segments: const [
-                      ButtonSegment(value: _Filter.all, label: Text('All')),
-                      ButtonSegment(value: _Filter.receive, label: Text('Owe you')),
-                      ButtonSegment(value: _Filter.pay, label: Text('You owe')),
+                      ButtonSegment(value: _Filter.all, label: Text('Sab')),
+                      ButtonSegment(value: _Filter.receive, label: Text('Lena hai')),
+                      ButtonSegment(value: _Filter.pay, label: Text('Dena hai')),
                     ],
                     selected: {_filter},
                     onSelectionChanged: (s) => setState(() => _filter = s.first),
@@ -97,10 +97,10 @@ class _PartiesScreenState extends State<PartiesScreen> {
                 if (all.isEmpty)
                   const EmptyState(
                     icon: Icons.people_outline,
-                    message: 'No parties yet.\nAdd your suppliers, buyers and transporters.',
+                    message: 'Abhi koi party nahi.\nApne supplier, gahak aur transporter shamil karein.',
                   )
                 else if (list.isEmpty)
-                  const EmptyState(icon: Icons.search_off, message: 'No party matches.')
+                  const EmptyState(icon: Icons.search_off, message: 'Koi party nahi mili.')
                 else
                   for (final p in list)
                     ListTile(
@@ -108,7 +108,7 @@ class _PartiesScreenState extends State<PartiesScreen> {
                       subtitle: Text([
                         p.type.label,
                         ?p.city,
-                        if (p.lastEntryDate != null) 'last ${formatShortDate(p.lastEntryDate!)}',
+                        if (p.lastEntryDate != null) 'akhri ${formatShortDate(p.lastEntryDate!)}',
                       ].join(' · ')),
                       trailing: BalanceText(p.balance),
                       onTap: () => _open(PartyScreen(partyId: p.id)),
@@ -118,40 +118,6 @@ class _PartiesScreenState extends State<PartiesScreen> {
           );
         },
       ),
-    );
-  }
-}
-
-class _Totals extends StatelessWidget {
-  const _Totals({required this.toReceive, required this.toPay});
-
-  final num toReceive;
-  final num toPay;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget box(String label, num amount, Color color) => Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: Theme.of(context).textTheme.labelMedium),
-                  const SizedBox(height: 4),
-                  Text(money(amount),
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(color: color, fontWeight: FontWeight.w600)),
-                ],
-              ),
-            ),
-          ),
-        );
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      child: Row(children: [
-        box('To receive', toReceive, AppColors.receive),
-        box('To pay', toPay, AppColors.pay),
-      ]),
     );
   }
 }

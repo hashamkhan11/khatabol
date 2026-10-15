@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/models.dart';
 import '../ui/common.dart';
 import '../util/format.dart';
+import 'deal_screen.dart';
 import 'home_screen.dart';
 
 /// The Stock tab: kg in stock per cloth type, valued at average cost.
@@ -22,61 +23,6 @@ class _StockScreenState extends State<StockScreen> {
     _view.currentState?.reload();
   }
 
-  Future<void> _rowMenu(StockRow row) async {
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(title: Text(row.item.displayName), subtitle: Text(kg(row.weightKg))),
-            const Divider(height: 1),
-            if (!row.archived) ...[
-              ListTile(
-                leading: const Icon(Icons.add_box_outlined),
-                title: const Text('Add stock'),
-                subtitle: const Text('Opening stock or stock found'),
-                onTap: () => Navigator.pop(context, 'add'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.indeterminate_check_box_outlined),
-                title: const Text('Remove stock'),
-                subtitle: const Text('Wastage, shortage or damage'),
-                onTap: () => Navigator.pop(context, 'remove'),
-              ),
-            ],
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('Rename'),
-              onTap: () => Navigator.pop(context, 'edit'),
-            ),
-            ListTile(
-              leading: Icon(row.archived ? Icons.unarchive_outlined : Icons.archive_outlined),
-              title: Text(row.archived ? 'Restore' : 'Archive'),
-              onTap: () => Navigator.pop(context, 'archive'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (!mounted || action == null) return;
-    switch (action) {
-      case 'add':
-        await _open(StockAdjustmentScreen(item: row.item, adding: true));
-      case 'remove':
-        await _open(StockAdjustmentScreen(item: row.item, adding: false));
-      case 'edit':
-        await _open(ItemFormScreen(item: row.item));
-      case 'archive':
-        try {
-          await Repo.of(context).setItemArchived(row.itemId, !row.archived);
-          _view.currentState?.reload();
-        } catch (e) {
-          if (mounted) showError(context, e);
-        }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final repo = Repo.of(context);
@@ -85,7 +31,7 @@ class _StockScreenState extends State<StockScreen> {
         title: const Text('Stock'),
         actions: [
           IconButton(
-            tooltip: _showArchived ? 'Hide archived' : 'Show archived',
+            tooltip: _showArchived ? 'Archive chhupayein' : 'Archive dikhayein',
             icon: Icon(_showArchived ? Icons.inventory : Icons.inventory_outlined),
             onPressed: () => setState(() => _showArchived = !_showArchived),
           ),
@@ -95,7 +41,7 @@ class _StockScreenState extends State<StockScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _open(const ItemFormScreen()),
         icon: const Icon(Icons.add),
-        label: const Text('Cloth type'),
+        label: const Text('Kapre ki qisam'),
       ),
       body: AsyncView<List<StockRow>>(
         key: _view,
@@ -115,8 +61,8 @@ class _StockScreenState extends State<StockScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        Expanded(child: Text('Total stock\n${kg(totalKg)}')),
-                        Text('Value\n${money(totalValue)}', textAlign: TextAlign.end),
+                        Expanded(child: Text('Kul stock\n${kg(totalKg)}')),
+                        Text('Qeemat\n${money(totalValue)}', textAlign: TextAlign.end),
                       ],
                     ),
                   ),
@@ -124,13 +70,13 @@ class _StockScreenState extends State<StockScreen> {
                 if (rows.isEmpty)
                   const EmptyState(
                     icon: Icons.inventory_2_outlined,
-                    message: 'No cloth types yet.\nAdd the types you trade, like “Used cloth” or “Cotton waste”.',
+                    message: 'Abhi kapre ki koi qisam nahi.\nJo maal aap bechte hain woh shamil karein, jaise “Purana kapra”.',
                   ),
                 for (final r in rows)
                   ListTile(
-                    onTap: () => _rowMenu(r),
+                    onTap: () => _open(StockItemScreen(row: r)),
                     title: Text(r.item.displayName),
-                    subtitle: Text(r.avgCost == null ? 'No purchases yet' : 'Avg cost ${money(r.avgCost!)}/kg'),
+                    subtitle: Text(r.avgCost == null ? 'Abhi koi khareed nahi' : 'Ausat laagat ${money(r.avgCost!)}/kg'),
                     trailing: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -147,13 +93,190 @@ class _StockScreenState extends State<StockScreen> {
                 if (rows.any((r) => r.weightKg < 0))
                   const Padding(
                     padding: EdgeInsets.all(16),
-                    child: Text('Red stock is below zero: more was sold than bought. '
-                        'A purchase may not have been entered yet.'),
+                    child: Text('Laal stock zero se kam hai: khareed se zyada becha gaya. '
+                        'Shayad koi khareed abhi darj nahi hui.'),
                   ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// One cloth type: kg in hand, stock in / out buttons, and its stock register
+/// (every purchase, sale and adjustment, newest first, with kg in hand after it).
+class StockItemScreen extends StatefulWidget {
+  const StockItemScreen({super.key, required this.row});
+
+  final StockRow row;
+
+  @override
+  State<StockItemScreen> createState() => _StockItemScreenState();
+}
+
+class _StockItemScreenState extends State<StockItemScreen> {
+  final _view = GlobalKey<AsyncViewState<(StockRow, List<StockMove>)>>();
+
+  Future<(StockRow, List<StockMove>)> _load() async {
+    final repo = Repo.of(context);
+    final id = widget.row.itemId;
+    final results = await Future.wait([repo.stockSummary(), repo.stockHistory(id)]);
+    final row = (results[0] as List<StockRow>).where((r) => r.itemId == id).firstOrNull ?? widget.row;
+    return (row, results[1] as List<StockMove>);
+  }
+
+  Future<void> _open(Widget screen) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+    _view.currentState?.reload();
+  }
+
+  Future<void> _toggleArchive(StockRow row) async {
+    try {
+      await Repo.of(context).setItemArchived(row.itemId, !row.archived);
+      _view.currentState?.reload();
+    } catch (e) {
+      if (mounted) showError(context, e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AsyncView<(StockRow, List<StockMove>)>(
+      key: _view,
+      load: _load,
+      builder: (context, data, reload) {
+        final (row, moves) = data;
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(row.item.displayName),
+            actions: [
+              PopupMenuButton<String>(
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'edit', child: Text('Naam badlein')),
+                  PopupMenuItem(value: 'archive', child: Text(row.archived ? 'Wapas laayein' : 'Archive karein')),
+                ],
+                onSelected: (v) => v == 'edit' ? _open(ItemFormScreen(item: row.item)) : _toggleArchive(row),
+              ),
+            ],
+          ),
+          body: RefreshIndicator(
+            onRefresh: reload,
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 24),
+              children: [
+                Card(
+                  margin: const EdgeInsets.all(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Haath mein'),
+                              Text(kg(row.weightKg),
+                                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: row.weightKg < 0 ? AppColors.pay : null,
+                                      )),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(money(row.stockValue)),
+                            if (row.avgCost != null) Text('${money(row.avgCost!)}/kg ausat'),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (!row.archived)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(backgroundColor: AppColors.receive),
+                            onPressed: () => _open(StockAdjustmentScreen(item: row.item, incoming: true)),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Stock aaya'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(backgroundColor: AppColors.pay),
+                            onPressed: () => _open(StockAdjustmentScreen(item: row.item, incoming: false)),
+                            icon: const Icon(Icons.remove),
+                            label: const Text('Stock gaya'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Text('Khareed aur farokht Sauday tab se darj hoti hain. '
+                      'Yahan baqi tabdeeli likhein: shuru ka stock, zaya, namoona, ginti ka farq.'),
+                ),
+                const SectionTitle('Stock register'),
+                if (moves.isEmpty)
+                  const EmptyState(icon: Icons.inventory_2_outlined, message: 'Abhi koi aamad ya nikasi nahi.')
+                else
+                  for (final m in moves.reversed)
+                    _MoveTile(
+                      move: m,
+                      onTap: m.dealId == null ? null : () => _open(DealScreen(dealId: m.dealId!)),
+                    ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// "Khareed · Rashid" or "Kharab / zaya".
+String stockMoveTitle(StockMove m) => switch (m.kind) {
+      'purchase' => [DealKind.purchase.label, ?m.partyName].join(' · '),
+      'sale' => [DealKind.sale.label, ?m.partyName].join(' · '),
+      _ => StockAdjustmentKind.tryParse(m.kind)?.label ?? m.kind,
+    };
+
+class _MoveTile extends StatelessWidget {
+  const _MoveTile({required this.move, this.onTap});
+
+  final StockMove move;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = move;
+    final incoming = m.weightKg >= 0;
+    return ListTile(
+      onTap: onTap,
+      title: Text(stockMoveTitle(m)),
+      subtitle: Text([
+        formatDate(m.date),
+        if (m.rate != null) '@ ${plainNumber(m.rate!)}',
+        ?m.reason,
+      ].join(' · ')),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text('${incoming ? '+' : '−'} ${kg(m.weightKg.abs())}',
+              style: TextStyle(color: incoming ? AppColors.receive : AppColors.pay, fontWeight: FontWeight.w600)),
+          Text('Baqi ${kg(m.qtyAfter)}', style: Theme.of(context).textTheme.bodySmall),
+        ],
       ),
     );
   }
@@ -181,7 +304,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
   }
 
   Future<void> _save() async {
-    if (_en.text.trim().isEmpty) return showError(context, 'Enter a name');
+    if (_en.text.trim().isEmpty) return showError(context, 'Naam likhein');
     setState(() => _saving = true);
     final repo = Repo.of(context);
     try {
@@ -201,7 +324,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
   @override
   Widget build(BuildContext context) {
     return FormPage(
-      title: widget.item == null ? 'New cloth type' : 'Rename cloth type',
+      title: widget.item == null ? 'Kapre ki nayi qisam' : 'Naam badlein',
       saving: _saving,
       onSave: _save,
       children: [
@@ -209,31 +332,34 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
           controller: _en,
           autofocus: true,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(labelText: 'Name', hintText: 'Used cloth'),
+          decoration: const InputDecoration(labelText: 'Naam', hintText: 'Purana kapra'),
         ),
         TextField(
           controller: _ur,
           textDirection: TextDirection.rtl,
-          decoration: const InputDecoration(labelText: 'Urdu name (optional)', hintText: 'پرانا کپڑا'),
+          decoration: const InputDecoration(labelText: 'Urdu naam (agar ho)', hintText: 'پرانا کپڑا'),
         ),
       ],
     );
   }
 }
 
-/// Stock change outside a deal. Adding needs a cost per kg so stock stays
-/// valued correctly; removing is valued at the current average cost.
+/// Stock that came in or went out outside a deal, with the reason as a kind
+/// (opening stock, wastage, own use, ...). Stock coming in needs a cost per kg
+/// so stock stays valued correctly; stock going out is valued at average cost.
 class StockAdjustmentScreen extends StatefulWidget {
-  const StockAdjustmentScreen({super.key, required this.item, required this.adding});
+  const StockAdjustmentScreen({super.key, required this.item, required this.incoming});
 
   final Item item;
-  final bool adding;
+  final bool incoming;
 
   @override
   State<StockAdjustmentScreen> createState() => _StockAdjustmentScreenState();
 }
 
 class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
+  late final _kinds = StockAdjustmentKind.values.where((k) => k.isIn == widget.incoming).toList();
+  late StockAdjustmentKind _kind = _kinds.first;
   num? _weight;
   num? _cost;
   DateTime _date = DateTime.now();
@@ -247,18 +373,22 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   }
 
   Future<void> _save() async {
-    if (_weight == null || _weight! <= 0) return showError(context, 'Enter the weight');
-    if (widget.adding && (_cost == null || _cost! < 0)) return showError(context, 'Enter the cost per kg');
+    if (_weight == null || _weight! <= 0) return showError(context, 'Wazan likhein');
+    if (widget.incoming && (_cost == null || _cost! < 0)) return showError(context, 'Qeemat fi kg likhein');
     setState(() => _saving = true);
     try {
       await Repo.of(context).recordStockAdjustment(
         itemId: widget.item.id,
-        weightKg: widget.adding ? _weight! : -_weight!,
-        costPerKg: widget.adding ? _cost : null,
+        kind: _kind,
+        weightKg: _weight!,
+        costPerKg: widget.incoming ? _cost : null,
         date: _date,
         reason: _reason.text,
       );
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        showDone(context, '${kg(_weight!)} ${widget.incoming ? 'stock mein jur gaye' : 'stock se nikal gaye'}');
+        Navigator.pop(context, true);
+      }
     } catch (e) {
       if (mounted) showError(context, e);
     } finally {
@@ -269,25 +399,33 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   @override
   Widget build(BuildContext context) {
     return FormPage(
-      title: '${widget.adding ? 'Add' : 'Remove'} ${widget.item.nameEn}',
+      title: '${widget.item.nameEn}: ${widget.incoming ? 'stock aaya' : 'stock gaya'}',
       saving: _saving,
       onSave: _save,
       children: [
-        NumberField(label: 'Weight', suffix: 'kg', autofocus: true, onChanged: (v) => _weight = v),
-        if (widget.adding)
+        const Text('Kyun?'),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            for (final k in _kinds)
+              ChoiceChip(label: Text(k.label), selected: _kind == k, onSelected: (_) => setState(() => _kind = k)),
+          ],
+        ),
+        NumberField(label: 'Wazan', suffix: 'kg', autofocus: true, onChanged: (v) => _weight = v),
+        if (widget.incoming)
           NumberField(
-            label: 'Cost per kg',
+            label: 'Qeemat fi kg',
             suffix: 'Rs/kg',
-            helper: 'What this stock cost you, so profit is right',
+            helper: 'Yeh maal aap ko kitne ka para, taake munafa sahi aaye',
             onChanged: (v) => _cost = v,
-          ),
+          )
+        else
+          const Text('Yeh maal ausat laagat par nuqsan mein likha jayega.'),
         DateField(value: _date, onChanged: (d) => setState(() => _date = d)),
         TextField(
           controller: _reason,
-          decoration: InputDecoration(
-            labelText: 'Reason (optional)',
-            hintText: widget.adding ? 'Opening stock' : 'Wastage',
-          ),
+          decoration: const InputDecoration(labelText: 'Tafseel (agar ho)'),
         ),
       ],
     );

@@ -27,7 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signIn() async {
     if (_email.text.trim().isEmpty || _password.text.isEmpty) {
-      showError(context, 'Enter your email and password');
+      showError(context, 'Email aur password likhein');
       return;
     }
     setState(() => _busy = true);
@@ -57,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Icon(Icons.menu_book_rounded, size: 56, color: theme.colorScheme.primary),
                     const SizedBox(height: 12),
                     Text('KhataBol', textAlign: TextAlign.center, style: theme.textTheme.headlineMedium),
-                    Text('Speak your khata', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+                    Text('Apna khata, apni zubaan', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
                     const SizedBox(height: 32),
                     TextField(
                       controller: _email,
@@ -85,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _busy ? null : _signIn,
                       child: _busy
                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Sign in'),
+                          : const Text('Sign in karein'),
                     ),
                   ],
                 ),

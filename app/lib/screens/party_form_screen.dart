@@ -38,9 +38,9 @@ class _PartyFormScreenState extends State<PartyFormScreen> {
   }
 
   Future<void> _save() async {
-    if (_name.text.trim().isEmpty) return showError(context, 'Enter a name');
+    if (_name.text.trim().isEmpty) return showError(context, 'Naam likhein');
     if (_opening != _Opening.none && (_openingAmount == null || _openingAmount! <= 0)) {
-      return showError(context, 'Enter the opening balance amount');
+      return showError(context, 'Purane hisaab ki raqam likhein');
     }
     setState(() => _saving = true);
     final repo = Repo.of(context);
@@ -80,7 +80,7 @@ class _PartyFormScreenState extends State<PartyFormScreen> {
   @override
   Widget build(BuildContext context) {
     return FormPage(
-      title: _editing ? 'Edit party' : 'New party',
+      title: _editing ? 'Party badlein' : 'Nayi party',
       saving: _saving,
       onSave: _save,
       children: [
@@ -88,51 +88,51 @@ class _PartyFormScreenState extends State<PartyFormScreen> {
           controller: _name,
           autofocus: !_editing,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(labelText: 'Name'),
+          decoration: const InputDecoration(labelText: 'Naam'),
         ),
         DropdownButtonFormField<PartyType>(
           initialValue: _type,
-          decoration: const InputDecoration(labelText: 'Type'),
+          decoration: const InputDecoration(labelText: 'Qisam'),
           items: [for (final t in PartyType.values) DropdownMenuItem(value: t, child: Text(t.label))],
           onChanged: (t) => setState(() => _type = t!),
         ),
         TextField(
           controller: _phone,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(labelText: 'Phone (optional)'),
+          decoration: const InputDecoration(labelText: 'Phone (agar ho)'),
         ),
         TextField(
           controller: _whatsapp,
           keyboardType: TextInputType.phone,
           decoration: const InputDecoration(
-            labelText: 'WhatsApp (optional)',
-            helperText: 'Used later to send khata statements',
+            labelText: 'WhatsApp (agar ho)',
+            helperText: 'Is number par khata bheja jayega',
           ),
         ),
         TextField(
           controller: _city,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(labelText: 'City (optional)'),
+          decoration: const InputDecoration(labelText: 'Shehar (agar ho)'),
         ),
         TextField(
           controller: _notes,
           maxLines: 2,
-          decoration: const InputDecoration(labelText: 'Notes (optional)'),
+          decoration: const InputDecoration(labelText: 'Note (agar ho)'),
         ),
         if (!_editing) ...[
-          const Text('Opening balance (old khata before this app)'),
+          const Text('Purana hisaab (is app se pehle ka khata)'),
           SegmentedButton<_Opening>(
             segments: const [
-              ButtonSegment(value: _Opening.none, label: Text('None')),
-              ButtonSegment(value: _Opening.owesYou, label: Text('Owes you')),
-              ButtonSegment(value: _Opening.youOwe, label: Text('You owe')),
+              ButtonSegment(value: _Opening.none, label: Text('Koi nahi')),
+              ButtonSegment(value: _Opening.owesYou, label: Text('Lena hai')),
+              ButtonSegment(value: _Opening.youOwe, label: Text('Dena hai')),
             ],
             selected: {_opening},
             onSelectionChanged: (s) => setState(() => _opening = s.first),
           ),
           if (_opening != _Opening.none) ...[
-            NumberField(label: 'Amount', suffix: 'Rs', onChanged: (v) => _openingAmount = v),
-            DateField(label: 'As of date', value: _openingDate, onChanged: (d) => setState(() => _openingDate = d)),
+            NumberField(label: 'Raqam', suffix: 'Rs', onChanged: (v) => _openingAmount = v),
+            DateField(label: 'Kis tareekh tak', value: _openingDate, onChanged: (d) => setState(() => _openingDate = d)),
           ],
         ],
       ],

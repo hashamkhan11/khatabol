@@ -5,7 +5,7 @@ import '../ui/common.dart';
 import '../util/format.dart';
 import 'home_screen.dart';
 
-/// The Expenses tab: business costs that belong to no deal (rent, salary, tea).
+/// The Kharchay tab: business costs that belong to no deal (rent, salary, tea).
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
 
@@ -25,13 +25,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   Future<void> _cancel(Expense e) async {
     final reason = await askCancelReason(
       context,
-      title: 'Cancel this expense?',
-      message: '${e.category} · ${money(e.amount)} on ${formatDate(e.date)}',
+      title: 'Yeh kharcha cancel karna hai?',
+      message: '${e.category} · ${money(e.amount)} · ${formatDate(e.date)}',
     );
     if (reason == null || !mounted) return;
     try {
       await Repo.of(context).cancelExpense(e.id, reason: reason);
-      if (mounted) showDone(context, 'Expense cancelled');
+      if (mounted) showDone(context, 'Kharcha cancel ho gaya');
       _view.currentState?.reload();
     } catch (err) {
       if (mounted) showError(context, err);
@@ -43,10 +43,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final repo = Repo.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Expenses'),
+        title: const Text('Kharchay'),
         actions: [
           IconButton(
-            tooltip: _showCancelled ? 'Hide cancelled' : 'Show cancelled',
+            tooltip: _showCancelled ? 'Cancel shuda chhupayein' : 'Cancel shuda dikhayein',
             icon: Icon(_showCancelled ? Icons.visibility : Icons.visibility_off_outlined),
             onPressed: () => setState(() => _showCancelled = !_showCancelled),
           ),
@@ -56,7 +56,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _add,
         icon: const Icon(Icons.add),
-        label: const Text('Expense'),
+        label: const Text('Naya kharcha'),
       ),
       body: AsyncView<List<Expense>>(
         key: _view,
@@ -74,18 +74,18 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               children: [
                 Card(
                   margin: const EdgeInsets.all(12),
-                  child: ListTile(title: const Text('This month'), trailing: Text(money(thisMonth))),
+                  child: ListTile(title: const Text('Is mahine'), trailing: Text(money(thisMonth))),
                 ),
-                if (list.isEmpty) const EmptyState(icon: Icons.receipt_long_outlined, message: 'No expenses yet.'),
+                if (list.isEmpty) const EmptyState(icon: Icons.receipt_long_outlined, message: 'Abhi koi kharcha nahi.'),
                 for (final e in list)
                   ListTile(
                     title: Text(e.category,
                         style: e.cancelled ? const TextStyle(decoration: TextDecoration.lineThrough) : null),
                     subtitle: Text([
                       formatDate(e.date),
-                      if (e.paidToName != null) 'owed to ${e.paidToName}',
+                      if (e.paidToName != null) '${e.paidToName} ko dena hai',
                       ?e.notes,
-                      if (e.cancelled) 'Cancelled',
+                      if (e.cancelled) 'Cancel shuda',
                     ].join(' · ')),
                     trailing: Text(money(e.amount)),
                     onLongPress: e.cancelled ? null : () => _cancel(e),
@@ -124,7 +124,7 @@ class _ExpenseForm extends StatefulWidget {
 }
 
 class _ExpenseFormState extends State<_ExpenseForm> {
-  static const _defaults = ['Rent', 'Salary', 'Electricity', 'Tea & food', 'Phone', 'Transport'];
+  static const _defaults = ['Kiraya', 'Tankhwah', 'Bijli', 'Chai pani', 'Phone', 'Transport'];
 
   String _category = '';
   num? _amount;
@@ -140,8 +140,8 @@ class _ExpenseFormState extends State<_ExpenseForm> {
   }
 
   Future<void> _save() async {
-    if (_category.trim().isEmpty) return showError(context, 'Enter what the expense was for');
-    if (_amount == null || _amount! <= 0) return showError(context, 'Enter an amount');
+    if (_category.trim().isEmpty) return showError(context, 'Likhein kharcha kis cheez ka tha');
+    if (_amount == null || _amount! <= 0) return showError(context, 'Raqam likhein');
     setState(() => _saving = true);
     try {
       await Repo.of(context).recordExpense(
@@ -163,7 +163,7 @@ class _ExpenseFormState extends State<_ExpenseForm> {
   Widget build(BuildContext context) {
     final options = {...widget.categories, ..._defaults}.toList();
     return FormPage(
-      title: 'New expense',
+      title: 'Naya kharcha',
       saving: _saving,
       onSave: _save,
       children: [
@@ -175,22 +175,22 @@ class _ExpenseFormState extends State<_ExpenseForm> {
             focusNode: focus,
             autofocus: true,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'What for', hintText: 'Rent, salary, tea…'),
+            decoration: const InputDecoration(labelText: 'Kis cheez ka', hintText: 'Kiraya, tankhwah, chai…'),
             onChanged: (v) => _category = v,
           ),
         ),
-        NumberField(label: 'Amount', suffix: 'Rs', onChanged: (v) => _amount = v),
+        NumberField(label: 'Raqam', suffix: 'Rs', onChanged: (v) => _amount = v),
         DateField(value: _date, onChanged: (d) => setState(() => _date = d)),
         PartyField(
-          label: 'Paid',
+          label: 'Kis ko dena hai',
           parties: widget.parties,
           value: _paidToId,
           allowNone: true,
-          noneLabel: 'Paid in cash now',
+          noneLabel: 'Abhi cash de diye',
           onChanged: (v) => setState(() => _paidToId = v),
         ),
-        if (_paidToId != null) const Text('Not paid yet: it is added to what you owe this party.'),
-        TextField(controller: _notes, decoration: const InputDecoration(labelText: 'Notes (optional)')),
+        if (_paidToId != null) const Text('Abhi nahi diye: yeh is party ke dena mein jurr jayega.'),
+        TextField(controller: _notes, decoration: const InputDecoration(labelText: 'Note (agar ho)')),
       ],
     );
   }

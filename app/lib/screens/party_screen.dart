@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/models.dart';
+import '../l10n/khata_text.dart';
 import '../ui/common.dart';
 import '../util/format.dart';
 import 'deal_screen.dart';
@@ -20,9 +21,9 @@ class PartyScreen extends StatefulWidget {
 class _PartyData {
   _PartyData(this.party, this.lines);
   final Party party;
-  final List<StatementLine> lines;
+  final List<KhataLine> lines;
 
-  num get balance => lines.isEmpty ? 0 : lines.last.balance;
+  num get balance => lines.isEmpty ? 0 : lines.last.balance ?? 0;
 }
 
 class _PartyScreenState extends State<PartyScreen> {
@@ -35,7 +36,7 @@ class _PartyScreenState extends State<PartyScreen> {
       repo.party(widget.partyId),
       repo.statement(widget.partyId, includeCancelled: _includeCancelled),
     ]);
-    return _PartyData(results[0] as Party, results[1] as List<StatementLine>);
+    return _PartyData(results[0] as Party, results[1] as List<KhataLine>);
   }
 
   Future<void> _open(Widget screen) async {
@@ -43,28 +44,24 @@ class _PartyScreenState extends State<PartyScreen> {
     _view.currentState?.reload();
   }
 
-  Future<void> _onLineTap(StatementLine line) async {
-    if (line.isBroughtForward || line.entryId == null) return;
+  Future<void> _onLineTap(KhataLine line) async {
+    if (line.isBroughtForward) return;
+    if (line.dealId != null) return _open(DealScreen(dealId: line.dealId!));
+    if (line.expenseId != null) {
+      return showDone(context, 'Yeh line kharchay ki hai. Usay Kharchay tab se cancel karein.');
+    }
+    if (line.cancelled) return;
     final repo = Repo.of(context);
     try {
-      final entry = await repo.entry(line.entryId!);
-      if (!mounted) return;
-      if (entry.dealId != null) {
-        return _open(DealScreen(dealId: entry.dealId!));
-      }
-      if (entry.expenseId != null) {
-        return showDone(context, 'This line is from an expense. Cancel it from the Expenses tab.');
-      }
-      if (line.isReversal) return;
       final reason = await askCancelReason(
         context,
-        title: 'Cancel this line?',
-        message: '${line.note}\n${money(line.amount)} on ${formatDate(line.date)}\n\n'
-            'A cancelling line is added; nothing is deleted.',
+        title: 'Yeh line cancel karni hai?',
+        message: '${lineTitle(line)}\n${money(line.amount)} · ${formatDate(line.date)}\n\n'
+            'Ek cancel ki line jurr jayegi; kuch delete nahi hota.',
       );
       if (reason == null) return;
       await repo.reverseEntry(line.entryId!, reason: reason);
-      if (mounted) showDone(context, 'Line cancelled');
+      if (mounted) showDone(context, 'Line cancel ho gayi');
       _view.currentState?.reload();
     } catch (e) {
       if (mounted) showError(context, e);
@@ -75,9 +72,9 @@ class _PartyScreenState extends State<PartyScreen> {
     final archive = !p.archived;
     final ok = await confirm(
       context,
-      title: archive ? 'Archive ${p.name}?' : 'Restore ${p.name}?',
-      message: archive ? 'The khata is kept, but no new entries can be added.' : null,
-      action: archive ? 'Archive' : 'Restore',
+      title: archive ? '${p.name} ko archive karna hai?' : '${p.name} ko wapas laana hai?',
+      message: archive ? 'Khata mehfooz rahega, lekin nayi entry nahi ho sakegi.' : null,
+      action: archive ? 'Archive' : 'Wapas laayein',
     );
     if (!ok || !mounted) return;
     try {
@@ -101,11 +98,11 @@ class _PartyScreenState extends State<PartyScreen> {
             actions: [
               PopupMenuButton<String>(
                 itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Edit details')),
+                  const PopupMenuItem(value: 'edit', child: Text('Tafseel badlein')),
                   CheckedPopupMenuItem(
-                      value: 'cancelled', checked: _includeCancelled, child: const Text('Show cancelled lines')),
-                  const PopupMenuItem(value: 'adjust', child: Text('Correction')),
-                  PopupMenuItem(value: 'archive', child: Text(p.archived ? 'Restore party' : 'Archive party')),
+                      value: 'cancelled', checked: _includeCancelled, child: const Text('Cancel shuda lines dikhayein')),
+                  const PopupMenuItem(value: 'adjust', child: Text('Durusti')),
+                  PopupMenuItem(value: 'archive', child: Text(p.archived ? 'Party wapas laayein' : 'Party archive karein')),
                 ],
                 onSelected: (v) {
                   switch (v) {
@@ -140,7 +137,7 @@ class _PartyScreenState extends State<PartyScreen> {
                             children: [
                               Text([p.type.label, ?p.city].join(' · ')),
                               if (p.phone != null) Text(p.phone!),
-                              if (p.archived) const Text('Archived', style: TextStyle(color: AppColors.pay)),
+                              if (p.archived) const Text('Archive shuda', style: TextStyle(color: AppColors.pay)),
                             ],
                           ),
                         ),
@@ -159,7 +156,7 @@ class _PartyScreenState extends State<PartyScreen> {
                             style: FilledButton.styleFrom(backgroundColor: AppColors.receive),
                             onPressed: () => _open(PaymentScreen(party: p, mode: PaymentMode.received)),
                             icon: const Icon(Icons.call_received),
-                            label: const Text('Received'),
+                            label: const Text('Paise mile'),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -168,7 +165,7 @@ class _PartyScreenState extends State<PartyScreen> {
                             style: FilledButton.styleFrom(backgroundColor: AppColors.pay),
                             onPressed: () => _open(PaymentScreen(party: p, mode: PaymentMode.paid)),
                             icon: const Icon(Icons.call_made),
-                            label: const Text('Paid'),
+                            label: const Text('Paise diye'),
                           ),
                         ),
                       ],
@@ -176,7 +173,7 @@ class _PartyScreenState extends State<PartyScreen> {
                   ),
                 const SectionTitle('Khata'),
                 if (data.lines.isEmpty)
-                  const EmptyState(icon: Icons.menu_book_outlined, message: 'No entries yet.')
+                  const EmptyState(icon: Icons.menu_book_outlined, message: 'Abhi koi entry nahi.')
                 else
                   for (final line in data.lines.reversed) _LineTile(line: line, onTap: () => _onLineTap(line)),
               ],
@@ -191,25 +188,25 @@ class _PartyScreenState extends State<PartyScreen> {
 class _LineTile extends StatelessWidget {
   const _LineTile({required this.line, required this.onTap});
 
-  final StatementLine line;
+  final KhataLine line;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final muted = line.isReversal;
     final amountColor = line.amount >= 0 ? AppColors.receive : AppColors.pay;
     return ListTile(
       onTap: onTap,
-      title: Text(line.note, style: muted ? const TextStyle(fontStyle: FontStyle.italic) : null),
-      subtitle: Text([formatDate(line.date), if (line.method != null) line.method!.label].join(' · ')),
+      title: Text(lineTitle(line),
+          style: line.cancelled ? const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey) : null),
+      subtitle: Text(lineDetails(line)),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!line.isBroughtForward)
-            Text('${line.amount >= 0 ? '+' : '−'} ${plainNumber(line.amount.abs())}',
+            Text(signedAmount(line.amount),
                 style: TextStyle(color: amountColor, fontWeight: FontWeight.w600)),
-          Text('Bal ${plainNumber(line.balance)}', style: Theme.of(context).textTheme.bodySmall),
+          Text('Baqaya ${plainNumber(line.balance ?? 0)}', style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );

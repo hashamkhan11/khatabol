@@ -81,19 +81,26 @@ class LedgerRepository {
   Future<void> setPartyArchived(String id, bool archived) =>
       _db.rpc('set_party_archived', params: {'p_id': id, 'p_archived': archived});
 
-  Future<List<StatementLine>> statement(String partyId, {DateTime? from, DateTime? to, bool includeCancelled = false}) async {
+  Future<List<KhataLine>> statement(String partyId, {DateTime? from, DateTime? to, bool includeCancelled = false}) async {
     final rows = await _db.rpc('party_statement', params: {
       'p_party_id': partyId,
       'p_from': from == null ? null : isoDate(from),
       'p_to': to == null ? null : isoDate(to),
       'p_include_cancelled': includeCancelled,
     }) as List;
-    return [for (final r in rows) StatementLine.fromJson(r as Map<String, dynamic>)];
+    return [for (final r in rows) KhataLine.fromJson(r as Map<String, dynamic>)];
   }
 
-  Future<KhataEntry> entry(String id) async {
-    final row = await _db.from('khata_entries').select('*, party:parties(name)').eq('id', id).single();
-    return KhataEntry.fromJson(row);
+  /// The latest khata lines across all parties, newest first. Cancelled lines are left out.
+  Future<List<KhataLine>> recentLines({int limit = 10}) async {
+    final rows = await _db
+        .from('khata_lines')
+        .select()
+        .eq('cancelled', false)
+        .order('created_at', ascending: false)
+        .order('seq', ascending: false)
+        .limit(limit);
+    return [for (final r in rows) KhataLine.fromJson(r)];
   }
 
   // ---------------- Payments ----------------
@@ -154,9 +161,11 @@ class LedgerRepository {
     return [for (final r in rows) StockRow.fromJson(r as Map<String, dynamic>)];
   }
 
-  /// Positive [weightKg] adds stock (needs [costPerKg]); negative removes it.
+  /// [weightKg] is always positive; [kind] says whether stock came in or went out.
+  /// Stock coming in needs [costPerKg].
   Future<void> recordStockAdjustment({
     required String itemId,
+    required StockAdjustmentKind kind,
     required num weightKg,
     num? costPerKg,
     required DateTime date,
@@ -164,11 +173,18 @@ class LedgerRepository {
   }) =>
       _db.rpc('record_stock_adjustment', params: {
         'p_item_id': itemId,
+        'p_kind': kind.db,
         'p_weight_kg': weightKg,
         'p_cost_per_kg': costPerKg,
         'p_date': isoDate(date),
         'p_reason': _blankToNull(reason),
       });
+
+  /// One cloth type's stock register, oldest first.
+  Future<List<StockMove>> stockHistory(String itemId) async {
+    final rows = await _db.rpc('stock_history', params: {'p_item_id': itemId}) as List;
+    return [for (final r in rows) StockMove.fromJson(r as Map<String, dynamic>)];
+  }
 
   // ---------------- Deals ----------------
 
@@ -192,13 +208,9 @@ class LedgerRepository {
   }
 
   /// Khata lines written by a deal, in the order they were written.
-  Future<List<KhataEntry>> dealEntries(String dealId) async {
-    final rows = await _db
-        .from('khata_entries')
-        .select('*, party:parties(name)')
-        .eq('deal_id', dealId)
-        .order('seq');
-    return [for (final r in rows) KhataEntry.fromJson(r)];
+  Future<List<KhataLine>> dealLines(String dealId) async {
+    final rows = await _db.from('khata_lines').select().eq('deal_id', dealId).order('seq');
+    return [for (final r in rows) KhataLine.fromJson(r)];
   }
 
   Future<String> recordDeal(DealDraft draft) async =>

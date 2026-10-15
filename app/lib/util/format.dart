@@ -46,10 +46,10 @@ num? toNumOrNull(Object? value) => value == null ? null : toNum(value);
 num roundMoney(num value) => (value * 100).round() / 100;
 
 /// What a balance means, in the trader's words.
-///   positive: the party owes us   -> "Lena hai" (to receive)
-///   negative: we owe the party    -> "Dena hai" (to pay)
+///   positive: the party owes us   -> "Lena hai" (we will receive)
+///   negative: we owe the party    -> "Dena hai" (we will pay)
 String balanceLabel(num balance) {
-  if (balance > 0) return 'Owes you';
-  if (balance < 0) return 'You owe';
-  return 'Settled';
+  if (balance > 0) return 'Lena hai';
+  if (balance < 0) return 'Dena hai';
+  return 'Hisaab barabar';
 }

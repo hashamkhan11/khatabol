@@ -28,16 +28,38 @@ Color balanceColor(num balance) =>
     balance > 0 ? AppColors.receive : (balance < 0 ? AppColors.pay : Colors.grey);
 
 /// Turns a database or network error into a sentence for the user.
-/// Database functions raise plain-English messages, so those are shown as is.
+/// Database functions raise plain-English messages; the common ones are shown
+/// in Roman Urdu, the rest as they are.
 String errorText(Object error) {
-  if (error is PostgrestException) return _capitalise(error.message);
+  if (error is PostgrestException) return _dbMessages[error.message] ?? _capitalise(error.message);
   if (error is AuthException) return error.message;
   final s = error.toString();
   if (s.contains('SocketException') || s.contains('ClientException')) {
-    return 'No internet connection. Check your connection and try again.';
+    return 'Internet nahi chal raha. Connection check kar ke dobara koshish karein.';
   }
   return s;
 }
+
+const _dbMessages = {
+  'party not found': 'Party nahi mili',
+  'cloth type not found': 'Kapre ki qisam nahi mili',
+  'deal not found': 'Sauda nahi mila',
+  'entry not found': 'Line nahi mili',
+  'seller and buyer must be different parties': 'Bechne wala aur khareedne wala alag hon',
+  'record payments for commission deals separately': 'Commission sauday ki payment alag se darj karein',
+  'payment amount must be positive': 'Raqam zero se zyada honi chahiye',
+  'paid_now cannot be negative': 'Abhi di gayi raqam manfi nahi ho sakti',
+  'weight must be positive': 'Wazan zero se zyada hona chahiye',
+  'stock coming in needs a cost per kg': 'Aane wale stock ki qeemat fi kg likhein',
+  'deal is already cancelled': 'Yeh sauda pehle hi cancel ho chuka hai',
+  'entry is already cancelled': 'Yeh line pehle hi cancel ho chuki hai',
+  'expense not found or already cancelled': 'Kharcha nahi mila ya pehle hi cancel hai',
+  'this line belongs to a deal or expense; cancel that instead': 'Yeh line sauday ya kharchay ki hai; usay cancel karein',
+  'a cancellation cannot be cancelled; record the entry again instead': 'Cancel ko cancel nahi kar sakte; line dobara darj karein',
+  'an adjustment needs a note explaining it': 'Durusti ki wajah likhein',
+  'adjustment amount cannot be zero': 'Raqam zero nahi ho sakti',
+  'Not signed in': 'Pehle sign in karein',
+};
 
 String _capitalise(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
@@ -107,7 +129,7 @@ class ErrorRetry extends StatelessWidget {
           children: [
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            FilledButton.tonal(onPressed: onRetry, child: const Text('Try again')),
+            FilledButton.tonal(onPressed: onRetry, child: const Text('Dobara koshish')),
           ],
         ),
       ),
@@ -139,7 +161,7 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// A balance with its meaning: "Rs 40,000" over "You owe".
+/// A balance with its meaning: "Rs 40,000" over "Dena hai".
 class BalanceText extends StatelessWidget {
   const BalanceText(this.balance, {super.key, this.large = false});
 
@@ -162,6 +184,41 @@ class BalanceText extends StatelessWidget {
   }
 }
 
+/// "Kul lena" and "Kul dena" side by side: what all parties owe us and what we owe them.
+class TotalsRow extends StatelessWidget {
+  const TotalsRow({super.key, required this.toReceive, required this.toPay});
+
+  final num toReceive;
+  final num toPay;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget box(String label, num amount, Color color) => Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: Theme.of(context).textTheme.labelMedium),
+                  const SizedBox(height: 4),
+                  Text(money(amount),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(color: color, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ),
+        );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Row(children: [
+        box('Kul lena', toReceive, AppColors.receive),
+        box('Kul dena', toPay, AppColors.pay),
+      ]),
+    );
+  }
+}
+
 /// Asks a yes/no question. Returns true when confirmed.
 Future<bool> confirm(BuildContext context, {required String title, String? message, String action = 'OK'}) async {
   final ok = await showDialog<bool>(
@@ -170,7 +227,7 @@ Future<bool> confirm(BuildContext context, {required String title, String? messa
       title: Text(title),
       content: message == null ? null : Text(message),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Back')),
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Wapas')),
         FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(action)),
       ],
     ),
@@ -194,16 +251,16 @@ Future<String?> askCancelReason(BuildContext context, {required String title, re
           const SizedBox(height: 12),
           TextField(
             controller: controller,
-            decoration: const InputDecoration(labelText: 'Reason (optional)'),
+            decoration: const InputDecoration(labelText: 'Wajah (agar ho)'),
           ),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Back')),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Wapas')),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: AppColors.pay),
           onPressed: () => Navigator.pop(context, controller.text),
-          child: const Text('Cancel it'),
+          child: const Text('Cancel karein'),
         ),
       ],
     ),
@@ -212,7 +269,7 @@ Future<String?> askCancelReason(BuildContext context, {required String title, re
 
 /// A form field showing a date that opens a date picker.
 class DateField extends StatelessWidget {
-  const DateField({super.key, required this.value, required this.onChanged, this.label = 'Date'});
+  const DateField({super.key, required this.value, required this.onChanged, this.label = 'Tareekh'});
 
   final DateTime value;
   final ValueChanged<DateTime> onChanged;
@@ -280,7 +337,7 @@ class PartyField extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.allowNone = false,
-    this.noneLabel = 'None',
+    this.noneLabel = 'Koi nahi',
   });
 
   final String label;
@@ -304,7 +361,7 @@ class PartyField extends StatelessWidget {
       },
       child: InputDecorator(
         decoration: InputDecoration(labelText: label, suffixIcon: const Icon(Icons.arrow_drop_down)),
-        child: Text(selected?.name ?? (allowNone ? noneLabel : 'Choose…'),
+        child: Text(selected?.name ?? (allowNone ? noneLabel : 'Chunein…'),
             style: selected == null ? TextStyle(color: Theme.of(context).hintColor) : null),
       ),
     );
@@ -343,7 +400,7 @@ class _PartyPickerState extends State<_PartyPicker> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: TextField(
                 autofocus: true,
-                decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search parties'),
+                decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Party talaash karein'),
                 onChanged: (s) => setState(() => _search = s),
               ),
             ),
@@ -361,7 +418,7 @@ class _PartyPickerState extends State<_PartyPicker> {
                   if (list.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(24),
-                      child: Text('No party found. Add it from the Khata tab first.', textAlign: TextAlign.center),
+                      child: Text('Koi party nahi mili. Pehle Khata tab se party banayein.', textAlign: TextAlign.center),
                     ),
                 ],
               ),
@@ -375,7 +432,7 @@ class _PartyPickerState extends State<_PartyPicker> {
 
 /// Picks one cloth type.
 class ItemField extends StatelessWidget {
-  const ItemField({super.key, required this.items, required this.value, required this.onChanged, this.label = 'Cloth type'});
+  const ItemField({super.key, required this.items, required this.value, required this.onChanged, this.label = 'Kapre ki qisam'});
 
   final List<Item> items;
   final String? value;
@@ -388,7 +445,7 @@ class ItemField extends StatelessWidget {
       initialValue: items.any((i) => i.id == value) ? value : null,
       decoration: InputDecoration(
         labelText: label,
-        helperText: items.isEmpty ? 'Add cloth types in the Stock tab first' : null,
+        helperText: items.isEmpty ? 'Pehle Stock tab mein kapre ki qisam banayein' : null,
       ),
       items: [for (final i in items) DropdownMenuItem(value: i.id, child: Text(i.displayName))],
       onChanged: onChanged,
@@ -451,7 +508,7 @@ class FormPage extends StatelessWidget {
     required this.children,
     required this.onSave,
     required this.saving,
-    this.saveLabel = 'Save',
+    this.saveLabel = 'Save karein',
     this.actions,
   });
 

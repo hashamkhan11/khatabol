@@ -33,9 +33,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Future<void> _save() async {
-    if (_amount == null || _amount! <= 0) return showError(context, 'Enter an amount');
+    if (_amount == null || _amount! <= 0) return showError(context, 'Raqam likhein');
     if (widget.mode == PaymentMode.adjustment && _note.text.trim().isEmpty) {
-      return showError(context, 'Write why this correction is needed');
+      return showError(context, 'Durusti ki wajah likhein');
     }
     setState(() => _saving = true);
     final repo = Repo.of(context);
@@ -58,7 +58,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         );
       }
       if (mounted) {
-        showDone(context, 'Saved ${money(_amount!)}');
+        showDone(context, '${money(_amount!)} save ho gaye');
         Navigator.pop(context, true);
       }
     } catch (e) {
@@ -72,9 +72,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Widget build(BuildContext context) {
     final name = widget.party.name;
     final title = switch (widget.mode) {
-      PaymentMode.received => 'Received from $name',
-      PaymentMode.paid => 'Paid to $name',
-      PaymentMode.adjustment => 'Correction for $name',
+      PaymentMode.received => '$name se paise mile',
+      PaymentMode.paid => '$name ko paise diye',
+      PaymentMode.adjustment => '$name ke hisaab mein durusti',
     };
     return FormPage(
       title: title,
@@ -84,13 +84,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
         if (widget.mode == PaymentMode.adjustment)
           SegmentedButton<bool>(
             segments: [
-              ButtonSegment(value: true, label: Text('$name owes more')),
-              const ButtonSegment(value: false, label: Text('You owe more')),
+              ButtonSegment(value: true, label: Text('$name se lena barhe')),
+              const ButtonSegment(value: false, label: Text('Mera dena barhe')),
             ],
             selected: {_owesMore},
             onSelectionChanged: (s) => setState(() => _owesMore = s.first),
           ),
-        NumberField(label: 'Amount', suffix: 'Rs', autofocus: true, onChanged: (v) => _amount = v),
+        NumberField(label: 'Raqam', suffix: 'Rs', autofocus: true, onChanged: (v) => _amount = v),
         DateField(value: _date, onChanged: (d) => setState(() => _date = d)),
         if (widget.mode != PaymentMode.adjustment)
           SegmentedButton<PaymentMethod>(
@@ -101,7 +101,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         TextField(
           controller: _note,
           decoration: InputDecoration(
-            labelText: widget.mode == PaymentMode.adjustment ? 'Reason' : 'Note (optional)',
+            labelText: widget.mode == PaymentMode.adjustment ? 'Wajah' : 'Note (agar ho)',
           ),
         ),
       ],

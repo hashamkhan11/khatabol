@@ -1,11 +1,14 @@
 import '../util/format.dart';
 
+// Labels are Roman Urdu, the way the trader speaks. The enum names match the
+// database values, which stay English so the WhatsApp bot and the app share them.
+
 enum PartyType {
   supplier('Supplier'),
   factory('Factory'),
-  buyer('Buyer'),
+  buyer('Gahak'),
   transporter('Transporter'),
-  other('Other');
+  other('Deegar');
 
   const PartyType(this.label);
   final String label;
@@ -14,8 +17,8 @@ enum PartyType {
 }
 
 enum DealKind {
-  purchase('Purchase'),
-  sale('Sale'),
+  purchase('Khareed'),
+  sale('Farokht'),
   commission('Commission');
 
   const DealKind(this.label);
@@ -27,7 +30,7 @@ enum DealKind {
 enum PaymentMethod {
   cash('Cash'),
   bank('Bank'),
-  other('Other');
+  other('Deegar');
 
   const PaymentMethod(this.label);
   final String label;
@@ -36,9 +39,9 @@ enum PaymentMethod {
 }
 
 enum CommissionMode {
-  perKg('per_kg', 'Per kg'),
-  percent('percent', 'Percent'),
-  fixed('fixed', 'Fixed amount');
+  perKg('per_kg', 'Fi kg'),
+  percent('percent', 'Feesad'),
+  fixed('fixed', 'Pakki raqam');
 
   const CommissionMode(this.db, this.label);
   final String db;
@@ -132,82 +135,163 @@ class Item {
   String get displayName => nameUr == null ? nameEn : '$nameEn · $nameUr';
 }
 
-/// One line of a party's khata, with the running balance after it.
-class StatementLine {
-  StatementLine({
+/// Why stock changed outside a deal. The first three bring stock in.
+enum StockAdjustmentKind {
+  opening('Shuru ka stock', true),
+  found('Ginti mein zyada nikla', true),
+  otherIn('Deegar (aamad)', true),
+  wastage('Kharab / zaya', false),
+  shortage('Ginti mein kam nikla', false),
+  ownUse('Apna istemal', false),
+  sample('Namoona', false),
+  otherOut('Deegar (nikasi)', false);
+
+  const StockAdjustmentKind(this.label, this.isIn);
+  final String label;
+
+  /// True when this kind adds stock.
+  final bool isIn;
+
+  /// The database value: 'other_in', 'own_use', ...
+  String get db => name.replaceAllMapped(RegExp('[A-Z]'), (m) => '_${m[0]!.toLowerCase()}');
+
+  static StockAdjustmentKind? tryParse(String? s) => StockAdjustmentKind.values.where((k) => k.db == s).firstOrNull;
+}
+
+/// One khata line with the facts needed to describe it in any language
+/// (see khata_text.dart). Comes from the khata_lines view, or from
+/// party_statement, which adds the running [balance].
+///
+/// The database stores no sentences: [note] is only what a person typed.
+class KhataLine {
+  KhataLine({
     required this.entryId,
     required this.date,
     required this.kind,
-    required this.note,
     required this.amount,
-    required this.balance,
+    this.note,
     this.method,
+    this.balance,
+    this.partyId,
+    this.partyName,
+    this.dealId,
+    this.dealKind,
+    this.itemName,
+    this.weightKg,
+    this.rate,
+    this.counterpartyName,
+    this.expenseId,
+    this.expenseCategory,
+    this.reversesId,
+    this.reversedKind,
+    this.cancelled = false,
   });
 
-  factory StatementLine.fromJson(Map<String, dynamic> j) => StatementLine(
-        entryId: j['entry_id'] as String?,
+  factory KhataLine.fromJson(Map<String, dynamic> j) => KhataLine(
+        entryId: (j['entry_id'] ?? j['id']) as String?,
         date: parseDate(j['entry_date'] as String),
         kind: j['kind'] as String?,
-        note: (j['note'] as String?) ?? '',
+        note: j['note'] as String?,
         method: PaymentMethod.parse(j['method'] as String?),
         amount: toNum(j['amount']),
-        balance: toNum(j['balance']),
+        balance: toNumOrNull(j['balance']),
+        partyId: j['party_id'] as String?,
+        partyName: j['party_name'] as String?,
+        dealId: j['deal_id'] as String?,
+        dealKind: j['deal_kind'] == null ? null : DealKind.parse(j['deal_kind'] as String),
+        itemName: j['item_name'] as String?,
+        weightKg: toNumOrNull(j['weight_kg']),
+        rate: toNumOrNull(j['rate']),
+        counterpartyName: j['counterparty_name'] as String?,
+        expenseId: j['expense_id'] as String?,
+        expenseCategory: j['expense_category'] as String?,
+        reversesId: j['reverses_id'] as String?,
+        reversedKind: j['reversed_kind'] as String?,
+        cancelled: (j['cancelled'] as bool?) ?? false,
       );
 
-  /// Null for the "Balance brought forward" line.
+  /// Null only for the brought-forward line of a statement.
   final String? entryId;
   final DateTime date;
+
+  /// The entry kind: 'opening', 'purchase', 'payment_in', ... Null when brought forward.
   final String? kind;
-  final String note;
+  final String? note;
   final PaymentMethod? method;
+
+  /// Positive = the party owes us more.
   final num amount;
-  final num balance;
+
+  /// Balance after this line (statements only).
+  final num? balance;
+  final String? partyId;
+  final String? partyName;
+  final String? dealId;
+  final DealKind? dealKind;
+  final String? itemName;
+  final num? weightKg;
+  final num? rate;
+
+  /// The other side of the deal, when it is not this line's party.
+  final String? counterpartyName;
+  final String? expenseId;
+  final String? expenseCategory;
+  final String? reversesId;
+
+  /// For a cancelling line: the kind of line it cancelled.
+  final String? reversedKind;
+
+  /// A cancelling line, or a line that has been cancelled.
+  final bool cancelled;
 
   bool get isBroughtForward => entryId == null;
   bool get isReversal => kind == 'reversal';
 }
 
-/// A raw khata line, used to find which deal or expense it belongs to.
-class KhataEntry {
-  KhataEntry({
-    required this.id,
-    required this.partyId,
+/// One move in a cloth type's stock register, with the kg in hand after it.
+class StockMove {
+  StockMove({
     required this.date,
-    required this.amount,
     required this.kind,
-    this.partyName,
-    this.note,
-    this.method,
+    required this.weightKg,
+    required this.qtyAfter,
     this.dealId,
-    this.expenseId,
-    this.reversesId,
+    this.adjustmentId,
+    this.partyName,
+    this.rate,
+    this.reason,
+    this.avgCostAfter,
   });
 
-  factory KhataEntry.fromJson(Map<String, dynamic> j) => KhataEntry(
-        id: j['id'] as String,
-        partyId: j['party_id'] as String,
-        partyName: (j['party'] as Map<String, dynamic>?)?['name'] as String?,
-        date: parseDate(j['entry_date'] as String),
-        amount: toNum(j['amount']),
+  factory StockMove.fromJson(Map<String, dynamic> j) => StockMove(
+        date: parseDate(j['move_date'] as String),
         kind: j['kind'] as String,
-        note: j['note'] as String?,
-        method: PaymentMethod.parse(j['method'] as String?),
+        weightKg: toNum(j['weight_kg']),
+        qtyAfter: toNum(j['qty_after']),
         dealId: j['deal_id'] as String?,
-        expenseId: j['expense_id'] as String?,
-        reversesId: j['reverses_id'] as String?,
+        adjustmentId: j['adjustment_id'] as String?,
+        partyName: j['party_name'] as String?,
+        rate: toNumOrNull(j['rate']),
+        reason: j['reason'] as String?,
+        avgCostAfter: toNumOrNull(j['avg_cost_after']),
       );
 
-  final String id;
-  final String partyId;
-  final String? partyName;
   final DateTime date;
-  final num amount;
+
+  /// 'purchase' or 'sale' for deals, otherwise a stock adjustment kind.
   final String kind;
-  final String? note;
-  final PaymentMethod? method;
+
+  /// Positive = stock came in.
+  final num weightKg;
+  final num qtyAfter;
   final String? dealId;
-  final String? expenseId;
-  final String? reversesId;
+  final String? adjustmentId;
+  final String? partyName;
+
+  /// Deal rate, or cost per kg of stock that came in.
+  final num? rate;
+  final String? reason;
+  final num? avgCostAfter;
 }
 
 class DealCost {

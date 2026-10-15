@@ -33,9 +33,9 @@ void main() {
   });
 
   test('balance labels', () {
-    expect(balanceLabel(100), 'Owes you');
-    expect(balanceLabel(-100), 'You owe');
-    expect(balanceLabel(0), 'Settled');
+    expect(balanceLabel(100), 'Lena hai');
+    expect(balanceLabel(-100), 'Dena hai');
+    expect(balanceLabel(0), 'Hisaab barabar');
   });
 
   group('models parse database rows', () {
@@ -87,11 +87,11 @@ void main() {
     });
 
     test('statement brought-forward line has no entry id', () {
-      final line = StatementLine.fromJson({
+      final line = KhataLine.fromJson({
         'entry_id': null,
         'entry_date': '2026-10-01',
         'kind': null,
-        'note': 'Balance brought forward',
+        'note': null,
         'method': null,
         'amount': -10000,
         'balance': -10000,

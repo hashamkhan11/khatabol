@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../data/deal_draft.dart';
 import '../data/models.dart';
+import '../l10n/khata_text.dart';
 import '../ui/common.dart';
 import '../util/format.dart';
 import 'deal_form_screen.dart';
 
 /// A deal's details and every khata line it wrote. Deals are never changed in
-/// place: "Edit" cancels this deal and records a corrected one.
+/// place: editing cancels this deal and records a corrected one.
 class DealScreen extends StatefulWidget {
   const DealScreen({super.key, required this.dealId});
 
@@ -18,14 +19,14 @@ class DealScreen extends StatefulWidget {
 }
 
 class _DealScreenState extends State<DealScreen> {
-  final _view = GlobalKey<AsyncViewState<(Deal, List<KhataEntry>)>>();
+  final _view = GlobalKey<AsyncViewState<(Deal, List<KhataLine>)>>();
 
-  Future<(Deal, List<KhataEntry>)> _load() async {
+  Future<(Deal, List<KhataLine>)> _load() async {
     final repo = Repo.of(context);
-    return (await repo.deal(widget.dealId), await repo.dealEntries(widget.dealId));
+    return (await repo.deal(widget.dealId), await repo.dealLines(widget.dealId));
   }
 
-  Future<void> _edit(Deal deal, List<KhataEntry> entries) async {
+  Future<void> _edit(Deal deal, List<KhataLine> entries) async {
     // Money paid on the spot is a khata line of the deal, not a deal column.
     final paid = entries
         .where((e) => e.reversesId == null && (e.kind == 'payment_out' || e.kind == 'payment_in'))
@@ -42,14 +43,14 @@ class _DealScreenState extends State<DealScreen> {
   Future<void> _cancel(Deal deal) async {
     final reason = await askCancelReason(
       context,
-      title: 'Cancel this deal?',
-      message: 'Every khata line of this deal gets a cancelling line, and it leaves stock and profit. '
-          'Nothing is deleted.',
+      title: 'Yeh sauda cancel karna hai?',
+      message: 'Is sauday ki har khata line ke saamne cancel ki line jurr jayegi, aur yeh stock aur munafay se nikal jayega. '
+          'Kuch delete nahi hota.',
     );
     if (reason == null || !mounted) return;
     try {
       await Repo.of(context).cancelDeal(deal.id, reason: reason);
-      if (mounted) showDone(context, 'Deal cancelled');
+      if (mounted) showDone(context, 'Sauda cancel ho gaya');
       _view.currentState?.reload();
     } catch (e) {
       if (mounted) showError(context, e);
@@ -58,7 +59,7 @@ class _DealScreenState extends State<DealScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AsyncView<(Deal, List<KhataEntry>)>(
+    return AsyncView<(Deal, List<KhataLine>)>(
       key: _view,
       load: _load,
       builder: (context, data, reload) {
@@ -70,9 +71,9 @@ class _DealScreenState extends State<DealScreen> {
             actions: [
               if (!deal.cancelled) ...[
                 IconButton(
-                    tooltip: 'Edit', icon: const Icon(Icons.edit_outlined), onPressed: () => _edit(deal, entries)),
+                    tooltip: 'Badlein', icon: const Icon(Icons.edit_outlined), onPressed: () => _edit(deal, entries)),
                 IconButton(
-                    tooltip: 'Cancel deal', icon: const Icon(Icons.delete_outline), onPressed: () => _cancel(deal)),
+                    tooltip: 'Sauda cancel karein', icon: const Icon(Icons.delete_outline), onPressed: () => _cancel(deal)),
               ],
             ],
           ),
@@ -81,65 +82,65 @@ class _DealScreenState extends State<DealScreen> {
             children: [
               if (deal.cancelled)
                 MaterialBanner(
-                  content: Text('Cancelled${deal.cancelReason == null ? '' : ': ${deal.cancelReason}'}'),
+                  content: Text('Cancel shuda${deal.cancelReason == null ? '' : ': ${deal.cancelReason}'}'),
                   leading: const Icon(Icons.block, color: AppColors.pay),
                   actions: const [SizedBox.shrink()],
                 ),
-              const SectionTitle('Deal'),
-              InfoRow('Date', formatDate(deal.date)),
+              const SectionTitle('Sauda'),
+              InfoRow('Tareekh', formatDate(deal.date)),
               InfoRow(
                 switch (deal.kind) {
                   DealKind.purchase => 'Supplier',
-                  DealKind.sale => 'Buyer',
-                  DealKind.commission => 'Seller',
+                  DealKind.sale => 'Gahak',
+                  DealKind.commission => 'Bechne wala',
                 },
                 deal.partyName,
               ),
-              if (deal.buyerName != null) InfoRow('Buyer', deal.buyerName!),
-              if (deal.itemName != null) InfoRow('Cloth type', deal.itemName!),
-              if (deal.weightKg != null) InfoRow('Weight', kg(deal.weightKg!)),
-              if (deal.rate != null) InfoRow('Rate', '${money(deal.rate!)} per kg'),
+              if (deal.buyerName != null) InfoRow('Khareedne wala', deal.buyerName!),
+              if (deal.itemName != null) InfoRow('Kapre ki qisam', deal.itemName!),
+              if (deal.weightKg != null) InfoRow('Wazan', kg(deal.weightKg!)),
+              if (deal.rate != null) InfoRow('Rate', '${money(deal.rate!)} fi kg'),
               if (deal.goodsAmount != null)
-                InfoRow('Goods amount', money(deal.goodsAmount!), valueStyle: const TextStyle(fontWeight: FontWeight.w600)),
+                InfoRow('Maal ki raqam', money(deal.goodsAmount!), valueStyle: const TextStyle(fontWeight: FontWeight.w600)),
               if (deal.kind == DealKind.commission)
-                InfoRow('Goods money', deal.goodsThroughMe ? 'Through me' : 'Direct, buyer to seller'),
-              if (deal.notes != null) InfoRow('Notes', deal.notes!),
-              if (deal.source != 'app') InfoRow('Entered by', deal.source == 'whatsapp' ? 'WhatsApp' : deal.source),
+                InfoRow('Maal ke paise', deal.goodsThroughMe ? 'Mere zariye' : 'Seedhay, khareedne wale se bechne wale ko'),
+              if (deal.notes != null) InfoRow('Note', deal.notes!),
+              if (deal.source != 'app') InfoRow('Kahan se darj hua', deal.source == 'whatsapp' ? 'WhatsApp' : deal.source),
               if (deal.commissions.isNotEmpty) ...[
                 const SectionTitle('Commission'),
                 for (final c in deal.commissions)
                   InfoRow(
                     '${names[c.partyId] ?? ''} · ${switch (c.mode) {
-                      CommissionMode.perKg => '${plainNumber(c.value)} per kg',
+                      CommissionMode.perKg => '${plainNumber(c.value)} fi kg',
                       CommissionMode.percent => '${plainNumber(c.value)}%',
-                      CommissionMode.fixed => 'fixed',
+                      CommissionMode.fixed => 'pakki raqam',
                     }}',
                     money(c.amount ?? 0),
                   ),
               ],
               if (deal.costs.isNotEmpty) ...[
-                const SectionTitle('Extra costs'),
+                const SectionTitle('Izafi kharchay'),
                 for (final c in deal.costs)
                   InfoRow(
-                    '${c.description} · ${c.chargedToId == null ? 'you bear it' : 'charged to ${names[c.chargedToId] ?? 'party'}'}'
-                    '${c.paidToName == null ? '' : ' · owed to ${c.paidToName}'}',
+                    '${c.description} · ${c.chargedToId == null ? 'mere zimme' : '${names[c.chargedToId] ?? 'party'} ke zimme'}'
+                    '${c.paidToName == null ? '' : ' · ${c.paidToName} ko dena hai'}',
                     money(c.amount),
                   ),
               ],
-              const SectionTitle('Khata lines'),
+              const SectionTitle('Khata ki lines'),
               for (final e in entries)
                 ListTile(
                   dense: true,
                   title: Text(e.partyName ?? ''),
-                  subtitle: Text(e.note ?? e.kind),
+                  subtitle: Text(lineTitle(e)),
                   trailing: Text(
-                    '${e.amount >= 0 ? '+' : '−'} ${plainNumber(e.amount.abs())}',
+                    signedAmount(e.amount),
                     style: TextStyle(color: balanceColor(e.amount), fontWeight: FontWeight.w600),
                   ),
                 ),
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Text('+ means the party owes you more. − means you owe them more.'),
+                child: Text('+ ka matlab party se lena barha. − ka matlab party ko dena barha.'),
               ),
             ],
           ),

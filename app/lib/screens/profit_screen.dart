@@ -3,19 +3,18 @@ import 'package:flutter/material.dart';
 import '../data/models.dart';
 import '../ui/common.dart';
 import '../util/format.dart';
-import 'home_screen.dart';
 
 enum _Range {
-  thisMonth('This month'),
-  lastMonth('Last month'),
-  thisYear('This year'),
-  custom('Custom');
+  thisMonth('Is mahine'),
+  lastMonth('Pichle mahine'),
+  thisYear('Is saal'),
+  custom('Apni tareekhein');
 
   const _Range(this.label);
   final String label;
 }
 
-/// The Profit tab. Profit = sales − cost of the cloth sold + commission − costs.
+/// The Munafa screen. Profit = sales − cost of the cloth sold + commission − costs.
 /// Unsold stock is not a loss; it is valued in the Stock tab.
 class ProfitScreen extends StatefulWidget {
   const ProfitScreen({super.key});
@@ -63,7 +62,7 @@ class _ProfitScreenState extends State<ProfitScreen> {
   Widget build(BuildContext context) {
     final repo = Repo.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Profit'), actions: const [AccountMenuButton()]),
+      appBar: AppBar(title: const Text('Munafa')),
       body: Column(
         children: [
           SingleChildScrollView(
@@ -97,7 +96,7 @@ class _ProfitScreenState extends State<ProfitScreen> {
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           children: [
-                            Text(r.netProfit >= 0 ? 'Net profit' : 'Net loss'),
+                            Text(r.netProfit >= 0 ? 'Khalis munafa' : 'Khalis nuqsan'),
                             Text(
                               money(r.netProfit),
                               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -109,24 +108,24 @@ class _ProfitScreenState extends State<ProfitScreen> {
                         ),
                       ),
                     ),
-                    const SectionTitle('Trading'),
-                    InfoRow('Sales', money(r.salesAmount)),
-                    InfoRow('Cost of cloth sold', '− ${money(r.costOfGoodsSold)}'),
-                    if (r.saleCosts != 0) InfoRow('Your costs on sales', '− ${money(r.saleCosts)}'),
-                    _total(context, 'Trading profit', r.tradingProfit),
+                    const SectionTitle('Khareed o farokht'),
+                    InfoRow('Farokht', money(r.salesAmount)),
+                    InfoRow('Beche gaye maal ki laagat', '− ${money(r.costOfGoodsSold)}'),
+                    if (r.saleCosts != 0) InfoRow('Farokht par mere kharchay', '− ${money(r.saleCosts)}'),
+                    _total(context, 'Maal ka munafa', r.tradingProfit),
                     const SectionTitle('Commission'),
-                    InfoRow('Commission earned', money(r.commissionIncome)),
-                    if (r.commissionCosts != 0) InfoRow('Your costs on commission deals', '− ${money(r.commissionCosts)}'),
-                    const SectionTitle('Other'),
-                    InfoRow('Expenses', '− ${money(r.expenses)}'),
-                    if (r.stockLosses != 0) InfoRow('Stock wastage', '− ${money(r.stockLosses)}'),
-                    _total(context, 'Net profit', r.netProfit),
+                    InfoRow('Commission ki kamai', money(r.commissionIncome)),
+                    if (r.commissionCosts != 0) InfoRow('Commission saudon par mere kharchay', '− ${money(r.commissionCosts)}'),
+                    const SectionTitle('Deegar'),
+                    InfoRow('Kharchay', '− ${money(r.expenses)}'),
+                    if (r.stockLosses != 0) InfoRow('Stock ka nuqsan', '− ${money(r.stockLosses)}'),
+                    _total(context, 'Khalis munafa', r.netProfit),
                     if (r.hasEstimates)
                       const Padding(
                         padding: EdgeInsets.all(16),
                         child: Text(
-                          'Some cloth was sold before its purchase was entered, so its cost is an estimate. '
-                          'Enter the missing purchases for an exact profit.',
+                          'Kuch maal khareed darj hone se pehle bik gaya, is liye us ki laagat andaza hai. '
+                          'Sahi munafay ke liye baqi khareed darj karein.',
                           style: TextStyle(color: AppColors.pay),
                         ),
                       ),

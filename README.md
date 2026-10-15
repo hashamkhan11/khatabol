@@ -22,6 +22,37 @@ KhataBol gives the trader a WhatsApp number to talk to instead:
 The bot reads the message, replies with what it understood, and records the deal
 once the trader confirms. Rashid's khata then shows that the trader owes him 40,000.
 
+## Product principles
+
+These shape every screen and every database function.
+
+1. **Talk in, look up.** Most entries will come from WhatsApp as natural
+   language (Roman Urdu, Urdu or English, typed or spoken). The app is mainly
+   for *looking*: it opens on a dashboard (*Khulasa*) with totals owed both
+   ways, this month's profit, stock in hand, the biggest balances and the
+   latest activity. Every entry can still be made by hand in the app.
+2. **One structured call per action.** Every write is a single database function
+   with typed parameters: `record_deal`, `record_payment`, `record_expense`,
+   `record_stock_adjustment`, `reverse_entry`. That is exactly what an AI
+   extractor fills in. The bot and the app call the same functions with the same
+   validation, so there is no second, "bot-only" path to keep in sync.
+3. **Choices are closed lists.** Wherever the user picks a reason or type (party
+   type, payment method, commission mode, why stock changed), the database
+   stores an enum, not free text. A model maps "maal kharab ho gaya" to
+   `wastage` reliably; it cannot do that against free text that drifts.
+4. **Store facts, not sentences.** Ledger lines store the entry kind and links to
+   the deal, cloth type, kg, rate and other party. The `note` column holds only
+   what the user typed. Each client words the line itself: the app in Roman
+   Urdu, the bot in whatever language it was spoken to. Changing wording never
+   needs a data migration.
+5. **Roman Urdu on screen.** Labels follow how traders already talk: *Lena hai*
+   (they owe you), *Dena hai* (you owe them), *Sauday* (deals), *Kharchay*
+   (expenses), *Munafa* (profit). Business words people say in English, like
+   stock, rate and cash, stay in English.
+6. **Confirm, then save; never edit.** The bot will read back what it understood
+   before saving. A mistake is cancelled with a reversing line, so the khata
+   always shows what happened and when.
+
 ## Architecture
 
 ```mermaid
@@ -59,13 +90,19 @@ The data model covers:
 - **Deal costs:** freight, labour and similar. Each cost can be charged to a party
   and owed to a transporter on credit.
 - **Payments, expenses and opening balances.**
-- **Stock:** adjustments for opening stock and wastage.
-- **Reports:** party statements, stock valuation and a profit report.
+- **Stock:** each cloth type has a stock register: every purchase, sale and
+  adjustment with kg in hand after it. Changes outside a deal are recorded as
+  *stock in* (opening stock, found in a count, other) or *stock out* (wastage,
+  short in a count, own use, sample, other). Stock in carries a cost per kg;
+  stock out is valued at the current average cost and counted as a stock loss
+  in the profit report.
+- **Reports:** party statements, stock valuation and register, a profit report
+  and a dashboard summary.
 
 ## Roadmap
 
 - [x] **1. Ledger database:** schema, business functions and a test suite
-- [x] **2. Mobile app:** Flutter app on Supabase: khata, deals, stock, expenses and profit
+- [x] **2. Mobile app:** Flutter app on Supabase: dashboard, khata, deals, stock register, expenses and profit, all in Roman Urdu
 - [ ] **3. WhatsApp bot (text):** Urdu, Roman Urdu and English messages, with confirmation before saving
 - [ ] **4. Voice notes and screenshots**
 - [ ] **5. Queries and summaries:** "Rashid ka balance?", statements and a daily summary
@@ -78,8 +115,9 @@ supabase/
   tests/        tests on an in-memory Postgres (PGlite)
 app/
   lib/data/     models and the repository that calls the ledger functions
-  lib/screens/  khata, deals, stock, expenses and profit screens
-  test/         unit tests for the deal preview and parsing
+  lib/l10n/     Roman Urdu wording of khata lines
+  lib/screens/  dashboard, khata, deals, stock, expenses and profit screens
+  test/         unit tests for the deal preview, parsing and wording
 ```
 
 `bot/` (WhatsApp webhook) will be added in step 3.

@@ -69,7 +69,7 @@ class _DealFormState extends State<_DealForm> {
         await repo.recordDeal(d);
       }
       if (mounted) {
-        showDone(context, widget.editing != null ? 'Deal updated' : 'Deal saved');
+        showDone(context, widget.editing != null ? 'Sauda badal diya' : 'Sauda save ho gaya');
         Navigator.pop(context, true);
       }
     } catch (e) {
@@ -82,19 +82,18 @@ class _DealFormState extends State<_DealForm> {
   @override
   Widget build(BuildContext context) {
     final parties = widget.parties;
-    final kindLabel = d.kind.label.toLowerCase();
     return FormPage(
-      title: widget.editing != null ? 'Edit $kindLabel' : 'New $kindLabel',
+      title: widget.editing != null ? '${d.kind.label} badlein' : 'Nayi ${d.kind.label.toLowerCase()}',
       saving: _saving,
       onSave: _save,
-      saveLabel: widget.editing != null ? 'Save changes' : 'Save deal',
+      saveLabel: widget.editing != null ? 'Tabdeeli save karein' : 'Sauda save karein',
       children: [
         DateField(value: d.date, onChanged: (v) => _update(() => d.date = v)),
         PartyField(
           label: switch (d.kind) {
-            DealKind.purchase => 'Supplier (bought from)',
-            DealKind.sale => 'Buyer (sold to)',
-            DealKind.commission => 'Seller',
+            DealKind.purchase => 'Supplier (jis se khareeda)',
+            DealKind.sale => 'Gahak (jis ko becha)',
+            DealKind.commission => 'Bechne wala',
           },
           parties: parties,
           value: d.partyId,
@@ -102,13 +101,13 @@ class _DealFormState extends State<_DealForm> {
         ),
         if (d.isCommission)
           PartyField(
-            label: 'Buyer',
+            label: 'Khareedne wala',
             parties: parties,
             value: d.buyerId,
             onChanged: (v) => _update(() => d.buyerId = v),
           ),
         ItemField(
-          label: d.isCommission ? 'Cloth type (optional)' : 'Cloth type',
+          label: d.isCommission ? 'Kapre ki qisam (agar ho)' : 'Kapre ki qisam',
           items: widget.items,
           value: d.itemId,
           onChanged: (v) => _update(() => d.itemId = v),
@@ -117,7 +116,7 @@ class _DealFormState extends State<_DealForm> {
           children: [
             Expanded(
               child: NumberField(
-                label: d.isCommission ? 'Weight (optional)' : 'Weight',
+                label: d.isCommission ? 'Wazan (agar ho)' : 'Wazan',
                 suffix: 'kg',
                 initial: d.weightKg,
                 onChanged: (v) => _update(() => d.weightKg = v),
@@ -126,7 +125,7 @@ class _DealFormState extends State<_DealForm> {
             const SizedBox(width: 12),
             Expanded(
               child: NumberField(
-                label: d.isCommission ? 'Rate (optional)' : 'Rate',
+                label: d.isCommission ? 'Rate (agar ho)' : 'Rate',
                 suffix: 'Rs/kg',
                 initial: d.rate,
                 onChanged: (v) => _update(() => d.rate = v),
@@ -134,12 +133,12 @@ class _DealFormState extends State<_DealForm> {
             ),
           ],
         ),
-        if (d.goodsAmount != null) InfoRow('Goods amount', money(d.goodsAmount!)),
+        if (d.goodsAmount != null) InfoRow('Maal ki raqam', money(d.goodsAmount!)),
         if (d.isCommission)
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Goods money goes through me'),
-            subtitle: const Text('Buyer pays you, and you pay the seller'),
+            title: const Text('Maal ke paise mere zariye'),
+            subtitle: const Text('Khareedne wala aap ko deta hai, aap bechne wale ko'),
             value: d.goodsThroughMe,
             onChanged: (v) => _update(() => d.goodsThroughMe = v),
           ),
@@ -149,7 +148,7 @@ class _DealFormState extends State<_DealForm> {
         TextFormField(
           initialValue: d.notes,
           maxLines: 2,
-          decoration: const InputDecoration(labelText: 'Notes (optional)'),
+          decoration: const InputDecoration(labelText: 'Note (agar ho)'),
           onChanged: (v) => d.notes = v,
         ),
         _Preview(effects: d.khataEffects(), nameOf: _name),
@@ -159,10 +158,10 @@ class _DealFormState extends State<_DealForm> {
 
   List<Widget> _paidNow() => [
         NumberField(
-          label: d.kind == DealKind.purchase ? 'Paid now (optional)' : 'Received now (optional)',
+          label: d.kind == DealKind.purchase ? 'Abhi diye (agar diye)' : 'Abhi mile (agar mile)',
           suffix: 'Rs',
           initial: d.paidNow,
-          helper: 'Leave empty if it is all on credit (udhaar)',
+          helper: 'Sab udhaar ho to khali chhorein',
           onChanged: (v) => _update(() => d.paidNow = v),
         ),
         if ((d.paidNow ?? 0) > 0)
@@ -179,7 +178,7 @@ class _DealFormState extends State<_DealForm> {
           trailing: TextButton.icon(
             onPressed: () => _update(() => d.commissions.add(CommissionDraft())),
             icon: const Icon(Icons.add),
-            label: const Text('Add'),
+            label: const Text('Aur'),
           ),
         ),
         for (final c in d.commissions)
@@ -197,11 +196,11 @@ class _DealFormState extends State<_DealForm> {
 
   List<Widget> _costs() => [
         SectionTitle(
-          'Extra costs (freight, labour…)',
+          'Izafi kharchay (kiraya, mazdoori…)',
           trailing: TextButton.icon(
             onPressed: () => _update(() => d.costs.add(CostDraft())),
             icon: const Icon(Icons.add),
-            label: const Text('Add'),
+            label: const Text('Aur'),
           ),
         ),
         for (final c in d.costs)
@@ -250,11 +249,11 @@ class _CommissionRow extends StatelessWidget {
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     initialValue: from.contains(draft.partyId) ? draft.partyId : null,
-                    decoration: const InputDecoration(labelText: 'From'),
+                    decoration: const InputDecoration(labelText: 'Kis se'),
                     items: [
                       for (final id in from)
                         DropdownMenuItem(
-                            value: id, child: Text('${nameOf(id)} (${id == sellerId ? 'seller' : 'buyer'})')),
+                            value: id, child: Text('${nameOf(id)} (${id == sellerId ? 'bechne wala' : 'khareedne wala'})')),
                     ],
                     onChanged: (v) {
                       draft.partyId = v;
@@ -262,7 +261,7 @@ class _CommissionRow extends StatelessWidget {
                     },
                   ),
                 ),
-                IconButton(onPressed: onRemove, icon: const Icon(Icons.close), tooltip: 'Remove'),
+                IconButton(onPressed: onRemove, icon: const Icon(Icons.close), tooltip: 'Hatayein'),
               ],
             ),
             const SizedBox(height: 12),
@@ -271,7 +270,7 @@ class _CommissionRow extends StatelessWidget {
                 Expanded(
                   child: DropdownButtonFormField<CommissionMode>(
                     initialValue: draft.mode,
-                    decoration: const InputDecoration(labelText: 'How'),
+                    decoration: const InputDecoration(labelText: 'Kaise'),
                     items: [for (final m in CommissionMode.values) DropdownMenuItem(value: m, child: Text(m.label))],
                     onChanged: (m) {
                       draft.mode = m!;
@@ -282,7 +281,7 @@ class _CommissionRow extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: NumberField(
-                    label: 'Value',
+                    label: 'Miqdar',
                     initial: draft.value,
                     suffix: switch (draft.mode) {
                       CommissionMode.perKg => 'Rs/kg',
@@ -336,19 +335,19 @@ class _CostRow extends StatelessWidget {
                 Expanded(
                   child: TextFormField(
                     initialValue: draft.description,
-                    decoration: const InputDecoration(labelText: 'What for', hintText: 'Freight, labour…'),
+                    decoration: const InputDecoration(labelText: 'Kis cheez ka', hintText: 'Kiraya, mazdoori…'),
                     onChanged: (v) {
                       draft.description = v;
                       onChanged();
                     },
                   ),
                 ),
-                IconButton(onPressed: onRemove, icon: const Icon(Icons.close), tooltip: 'Remove'),
+                IconButton(onPressed: onRemove, icon: const Icon(Icons.close), tooltip: 'Hatayein'),
               ],
             ),
             const SizedBox(height: 12),
             NumberField(
-              label: 'Amount',
+              label: 'Raqam',
               suffix: 'Rs',
               initial: draft.amount,
               onChanged: (v) {
@@ -359,9 +358,9 @@ class _CostRow extends StatelessWidget {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: dealParties.contains(draft.chargedToId) ? draft.chargedToId : me,
-              decoration: const InputDecoration(labelText: 'Who bears it'),
+              decoration: const InputDecoration(labelText: 'Kis ke zimme'),
               items: [
-                const DropdownMenuItem(value: me, child: Text('Me')),
+                const DropdownMenuItem(value: me, child: Text('Mere')),
                 for (final id in dealParties) DropdownMenuItem(value: id, child: Text(nameOf(id))),
               ],
               onChanged: (v) {
@@ -371,11 +370,11 @@ class _CostRow extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             PartyField(
-              label: 'Paid to',
+              label: 'Kis ko dena hai',
               parties: parties,
               value: draft.paidToId,
               allowNone: true,
-              noneLabel: 'Paid in cash now',
+              noneLabel: 'Abhi cash de diye',
               onChanged: (v) {
                 draft.paidToId = v;
                 onChanged();
@@ -404,16 +403,16 @@ class _Preview extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Khata after saving', style: Theme.of(context).textTheme.titleSmall),
+            Text('Save ke baad khata', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
-            if (effects.isEmpty) const Text('No khata changes yet.'),
+            if (effects.isEmpty) const Text('Abhi khata mein koi tabdeeli nahi.'),
             for (final e in effects.entries)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Text(
                   e.value > 0
-                      ? '${nameOf(e.key)} owes you ${money(e.value)} more'
-                      : 'You owe ${nameOf(e.key)} ${money(e.value)} more',
+                      ? '${nameOf(e.key)} se ${money(e.value)} mazeed lena'
+                      : '${nameOf(e.key)} ko ${money(e.value)} mazeed dena',
                   style: TextStyle(color: balanceColor(e.value)),
                 ),
               ),

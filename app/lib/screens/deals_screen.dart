@@ -13,7 +13,7 @@ IconData dealIcon(DealKind kind) => switch (kind) {
       DealKind.commission => Icons.handshake_outlined,
     };
 
-/// The Deals tab: purchases, sales and commission deals, newest first.
+/// The Sauday tab: purchases, sales and commission deals, newest first.
 class DealsScreen extends StatefulWidget {
   const DealsScreen({super.key});
 
@@ -38,23 +38,23 @@ class _DealsScreenState extends State<DealsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(padding: EdgeInsets.all(16), child: Text('New deal')),
+            const Padding(padding: EdgeInsets.all(16), child: Text('Naya sauda')),
             ListTile(
               leading: Icon(dealIcon(DealKind.purchase)),
-              title: const Text('Purchase'),
-              subtitle: const Text('You bought cloth'),
+              title: Text(DealKind.purchase.label),
+              subtitle: const Text('Aap ne maal khareeda'),
               onTap: () => Navigator.pop(context, DealKind.purchase),
             ),
             ListTile(
               leading: Icon(dealIcon(DealKind.sale)),
-              title: const Text('Sale'),
-              subtitle: const Text('You sold cloth'),
+              title: Text(DealKind.sale.label),
+              subtitle: const Text('Aap ne maal becha'),
               onTap: () => Navigator.pop(context, DealKind.sale),
             ),
             ListTile(
               leading: Icon(dealIcon(DealKind.commission)),
-              title: const Text('Commission'),
-              subtitle: const Text('You arranged a deal between a seller and a buyer'),
+              title: Text(DealKind.commission.label),
+              subtitle: const Text('Aap ne bechne aur khareedne wale ka sauda karwaya'),
               onTap: () => Navigator.pop(context, DealKind.commission),
             ),
           ],
@@ -69,10 +69,10 @@ class _DealsScreenState extends State<DealsScreen> {
     final repo = Repo.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Deals'),
+        title: const Text('Sauday'),
         actions: [
           IconButton(
-            tooltip: _showCancelled ? 'Hide cancelled' : 'Show cancelled',
+            tooltip: _showCancelled ? 'Cancel shuda chhupayein' : 'Cancel shuda dikhayein',
             icon: Icon(_showCancelled ? Icons.visibility : Icons.visibility_off_outlined),
             onPressed: () => setState(() => _showCancelled = !_showCancelled),
           ),
@@ -82,7 +82,7 @@ class _DealsScreenState extends State<DealsScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _newDeal,
         icon: const Icon(Icons.add),
-        label: const Text('Deal'),
+        label: const Text('Naya sauda'),
       ),
       body: Column(
         children: [
@@ -95,7 +95,7 @@ class _DealsScreenState extends State<DealsScreen> {
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: Text(k?.label ?? 'All'),
+                      label: Text(k?.label ?? 'Sab'),
                       selected: _kind == k,
                       onSelected: (_) {
                         setState(() => _kind = k);
@@ -116,7 +116,7 @@ class _DealsScreenState extends State<DealsScreen> {
                   onRefresh: reload,
                   child: list.isEmpty
                       ? ListView(children: const [
-                          EmptyState(icon: Icons.swap_horiz, message: 'No deals yet.\nTap “Deal” to add one.'),
+                          EmptyState(icon: Icons.swap_horiz, message: 'Abhi koi sauda nahi.\n“Naya sauda” dabayein.'),
                         ])
                       : ListView.builder(
                           padding: const EdgeInsets.only(bottom: 88),
@@ -152,7 +152,7 @@ class DealTile extends StatelessWidget {
       leading: CircleAvatar(child: Icon(dealIcon(d.kind), size: 20)),
       title: Text(d.title, style: cancelled),
       subtitle: Text(
-        [formatShortDate(d.date), d.kind.label, if (d.summary.isNotEmpty) d.summary, if (d.cancelled) 'Cancelled']
+        [formatShortDate(d.date), d.kind.label, if (d.summary.isNotEmpty) d.summary, if (d.cancelled) 'Cancel shuda']
             .join(' · '),
       ),
       trailing: amount == null ? null : Text(money(amount), style: cancelled ?? const TextStyle(fontWeight: FontWeight.w600)),
