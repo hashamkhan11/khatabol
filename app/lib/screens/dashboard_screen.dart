@@ -69,7 +69,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final stockKg = stock.fold<num>(0, (t, r) => t + r.weightKg);
           final stockValue = stock.fold<num>(0, (t, r) => t + r.stockValue);
           final profit = s.profit.netProfit;
-          final text = Theme.of(context).textTheme;
 
           Widget partyTile(PartyBalance p) => ListTile(
                 dense: true,
@@ -86,48 +85,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 TotalsRow(toReceive: toReceive, toPay: toPay),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Card(
-                          child: InkWell(
-                            onTap: () => _open(const ProfitScreen()),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Is mahine ka munafa'),
-                                  Text(
-                                    '${profit < 0 ? '− ' : ''}${money(profit)}',
-                                    style: text.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: profit < 0 ? AppColors.pay : AppColors.receive,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _StatCard(
+                          label: 'Is mahine ka munafa',
+                          value: '${profit < 0 ? '− ' : ''}${money(profit)}',
+                          color: profit < 0 ? AppColors.pay : AppColors.receive,
+                          note: 'Tafseel dekhein ›',
+                          onTap: () => _open(const ProfitScreen()),
                         ),
-                      ),
-                      Expanded(
-                        child: Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Stock haath mein'),
-                                Text(kg(stockKg), style: text.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
-                                Text(money(stockValue), style: text.bodySmall),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                        _StatCard(label: 'Stock haath mein', value: kg(stockKg), note: money(stockValue)),
+                      ],
+                    ),
                   ),
                 ),
                 if (debtors.isNotEmpty) ...[
@@ -158,6 +130,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// A small dashboard number card, styled like [TotalsRow].
+class _StatCard extends StatelessWidget {
+  const _StatCard({required this.label, required this.value, this.note, this.color, this.onTap});
+
+  final String label;
+  final String value;
+  final String? note;
+  final Color? color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Expanded(
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: text.labelMedium),
+                const SizedBox(height: 4),
+                Text(value, style: text.titleLarge?.copyWith(color: color, fontWeight: FontWeight.w600)),
+                if (note != null) Text(note!, style: text.bodySmall),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
