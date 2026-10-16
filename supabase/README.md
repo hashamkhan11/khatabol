@@ -28,9 +28,22 @@ WhatsApp bot only call these functions, so both always follow the same rules.
 | Stock in / out outside a deal (kind: opening, found, other_in, wastage, shortage, own_use, sample, other_out) | `record_stock_adjustment`, `cancel_stock_adjustment` |
 | Reports | `party_balances` (view), `khata_lines` (view), `party_statement`, `stock_summary`, `stock_history`, `profit_report` |
 
+### Functions only the WhatsApp bot calls
+
+The bot uses the service key, so these are granted to `service_role` only.
+A number must be listed in `bot_senders` (linked to a user) to get any answer.
+
+| Action | Function |
+|---|---|
+| Skip a message WhatsApp delivered twice | `bot_claim_message` |
+| Names, balances, the entry waiting and the last saved one | `bot_context` |
+| Keep the entry read back until the user says yes | `bot_set_pending` |
+| Save it (or undo the last one) as the linked user, in one transaction | `bot_confirm` |
+
 ## Files
 
 - `migrations/` – the database itself. These are deployed to Supabase.
+- `functions/whatsapp/` – the WhatsApp bot. See its README.
 - `tests/` – tests that run on a local in-memory Postgres (PGlite).
   `tests/auth_stub.sql` imitates Supabase login for tests only; never deploy it.
 

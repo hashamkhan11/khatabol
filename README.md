@@ -103,7 +103,7 @@ The data model covers:
 
 - [x] **1. Ledger database:** schema, business functions and a test suite
 - [x] **2. Mobile app:** Flutter app on Supabase: dashboard, khata, deals, stock register, expenses and profit, all in Roman Urdu
-- [ ] **3. WhatsApp bot (text):** Urdu, Roman Urdu and English messages, with confirmation before saving
+- [x] **3. WhatsApp bot (text):** Urdu, Roman Urdu and English messages, read back for a yes before saving, with undo
 - [ ] **4. Voice notes and screenshots**
 - [ ] **5. Queries and summaries:** "Rashid ka balance?", statements and a daily summary
 
@@ -113,6 +113,7 @@ The data model covers:
 supabase/
   migrations/   schema and ledger functions (deployed to Supabase)
   tests/        tests on an in-memory Postgres (PGlite)
+  functions/whatsapp/   the WhatsApp bot (Edge Function, TypeScript)
 app/
   lib/data/     models and the repository that calls the ledger functions
   lib/l10n/     Roman Urdu wording of khata lines
@@ -120,7 +121,8 @@ app/
   test/         unit tests for the deal preview, parsing and wording
 ```
 
-`bot/` (WhatsApp webhook) will be added in step 3.
+See [supabase/functions/whatsapp/README.md](supabase/functions/whatsapp/README.md)
+for how the bot works and how to connect it to WhatsApp.
 
 ## Running the tests
 
