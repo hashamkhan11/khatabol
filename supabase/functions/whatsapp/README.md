@@ -57,7 +57,9 @@ Supabase, never into this repository.
    npx supabase@2.120.0 secrets set WHATSAPP_TOKEN=... WHATSAPP_PHONE_NUMBER_ID=... WHATSAPP_APP_SECRET=... WHATSAPP_VERIFY_TOKEN=... GEMINI_API_KEY=...
    ```
 
-   Optional: `GEMINI_MODEL` (default `gemini-3.8-flash`) and
+   Optional: `GEMINI_MODEL` (default `gemini-3.8-flash`),
+   `GEMINI_FALLBACK_MODELS` (used in turn when it is busy; default
+   `gemini-3.6-flash,gemini-3.5-flash-lite`) and
    `WHATSAPP_API_VERSION` (default `v25.0`).
 4. **Deploy:**
 

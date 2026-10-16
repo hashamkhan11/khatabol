@@ -4,7 +4,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { handle, type Deps } from './bot.ts';
-import { sanitize } from './gemini.ts';
+import { extract, sanitize } from './gemini.ts';
 import { RESPONSE_SCHEMA } from './prompt.ts';
 import { renderConfirmed, renderPlan } from './render.ts';
 import { looseKey, partyRef, resolve } from './resolve.ts';
@@ -163,6 +163,51 @@ describe('the model\'s answer is never trusted as is', () => {
   test('every field of an entry is required in the schema, so the model always fills it or says null', () => {
     const draftSchema = RESPONSE_SCHEMA.properties.entries.items;
     assert.deepEqual([...draftSchema.required].sort(), Object.keys(draftSchema.properties).sort());
+  });
+});
+
+describe('when Gemini is busy', () => {
+  const answer = { candidates: [{ content: { parts: [{ text: JSON.stringify({ language: 'english', intent: 'reply', entries: [], reply: 'hi' }) }] } }] };
+  const fakeGemini = (statuses: Record<string, number[]>) => {
+    const calls: string[] = [];
+    const fetchFn = (async (url: string) => {
+      const model = /models\/([^:]+):/.exec(url)![1];
+      calls.push(model);
+      const status = statuses[model]?.shift() ?? 200;
+      return new Response(status === 200 ? JSON.stringify(answer) : '{"error":{}}', { status });
+    }) as unknown as typeof fetch;
+    return { calls, fetchFn };
+  };
+  const cfg = { apiKey: 'k', models: ['main', 'backup'] };
+  const noWait = async () => {};
+
+  test('it waits and tries again', async () => {
+    const g = fakeGemini({ main: [503] });
+    const e = await extract('hi', ctx(), cfg, g.fetchFn, noWait);
+    assert.equal(e.reply, 'hi');
+    assert.deepEqual(g.calls, ['main', 'main']);
+  });
+
+  test('it moves to the backup model when the main one stays busy or is missing', async () => {
+    const busy = fakeGemini({ main: [503, 429, 503] });
+    await extract('hi', ctx(), cfg, busy.fetchFn, noWait);
+    assert.deepEqual(busy.calls, ['main', 'main', 'main', 'backup']);
+
+    const missing = fakeGemini({ main: [404] });
+    await extract('hi', ctx(), cfg, missing.fetchFn, noWait);
+    assert.deepEqual(missing.calls, ['main', 'backup']);
+  });
+
+  test('a bad request is not retried', async () => {
+    const g = fakeGemini({ main: [400] });
+    await assert.rejects(extract('hi', ctx(), cfg, g.fetchFn, noWait), /Gemini main 400/);
+    assert.deepEqual(g.calls, ['main']);
+  });
+
+  test('when every model is busy it gives up with the last error', async () => {
+    const g = fakeGemini({ main: [503, 503, 503], backup: [503, 503, 503] });
+    await assert.rejects(extract('hi', ctx(), cfg, g.fetchFn, noWait), /Gemini backup 503/);
+    assert.equal(g.calls.length, 6);
   });
 });
 

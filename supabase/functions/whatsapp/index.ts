@@ -21,7 +21,11 @@ const wa = new WhatsApp({
   apiVersion: env('WHATSAPP_API_VERSION', 'v25.0'),
 });
 const db = new Db(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
-const gemini = { apiKey: env('GEMINI_API_KEY'), model: env('GEMINI_MODEL', 'gemini-3.8-flash') };
+const gemini = {
+  apiKey: env('GEMINI_API_KEY'),
+  models: [env('GEMINI_MODEL', 'gemini-3.8-flash'),
+    ...env('GEMINI_FALLBACK_MODELS', 'gemini-3.6-flash,gemini-3.5-flash-lite').split(',').map((m) => m.trim()).filter(Boolean)],
+};
 const appSecret = env('WHATSAPP_APP_SECRET');
 const verifyToken = env('WHATSAPP_VERIFY_TOKEN');
 

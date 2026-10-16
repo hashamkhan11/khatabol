@@ -6,11 +6,15 @@ import type { Context, Draft, Extraction } from './types.ts';
 
 export interface GeminiConfig {
   apiKey: string;
-  model: string;
+  /** Tried in order: the next one is used when one is busy or unavailable. */
+  models: string[];
 }
 
-export async function extract(text: string, ctx: Context, cfg: GeminiConfig, fetchFn = fetch): Promise<Extraction> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${cfg.model}:generateContent`;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export async function extract(
+  text: string, ctx: Context, cfg: GeminiConfig, fetchFn = fetch, wait = sleep,
+): Promise<Extraction> {
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
     contents: [{ role: 'user', parts: [{ text: `${contextPrompt(ctx)}\n\nMessage:\n${text}` }] }],
@@ -21,19 +25,28 @@ export async function extract(text: string, ctx: Context, cfg: GeminiConfig, fet
     },
   };
 
+  // Busy (503, 429, other 5xx): wait and try again, then move to the next
+  // model. Not found (404): next model. Anything else is a real error.
   let res: Response | undefined;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    res = await fetchFn(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-goog-api-key': cfg.apiKey },
-      body: JSON.stringify(body),
-    });
-    if (res.status < 500 && res.status !== 429) break;
-    await new Promise((r) => setTimeout(r, 1500));
+  let failure = '';
+  models: for (const model of cfg.models) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    for (const delay of [0, 2000, 5000]) {
+      if (delay) await wait(delay);
+      res = await fetchFn(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': cfg.apiKey },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) break models;
+      failure = `Gemini ${model} ${res.status}: ${(await res.text()).slice(0, 300)}`;
+      if (res.status === 404) continue models;
+      if (res.status < 500 && res.status !== 429) throw new Error(failure);
+    }
   }
-  if (!res!.ok) throw new Error(`Gemini ${res!.status}: ${(await res!.text()).slice(0, 300)}`);
+  if (!res?.ok) throw new Error(failure);
 
-  const json = await res!.json();
+  const json = await res.json();
   const parts: { text?: string; thought?: boolean }[] = json?.candidates?.[0]?.content?.parts ?? [];
   const answer = parts.filter((p) => !p.thought && p.text).map((p) => p.text).join('');
   if (!answer) throw new Error(`Gemini returned no text: ${JSON.stringify(json).slice(0, 300)}`);
