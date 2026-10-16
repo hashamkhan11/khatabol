@@ -7,10 +7,15 @@
 // Everything outside (database, model, WhatsApp) is passed in, so this file
 // is tested without any of them.
 
-import { renderConfirmed, renderError, renderPlan, renderProblems, say } from './render.ts';
+import type { Message, Reading } from './gemini.ts';
+import { heardLine, renderConfirmed, renderError, renderPlan, renderProblems, say } from './render.ts';
 import { resolve } from './resolve.ts';
-import type { Confirmed, Context, Extraction, Lang, Plan } from './types.ts';
-import type { Incoming } from './whatsapp.ts';
+import type { Confirmed, Context, Extraction, Lang, Media, Plan, Usage } from './types.ts';
+import { type Incoming, MediaTooBig } from './whatsapp.ts';
+
+// Voice notes are small (about 1 MB for 5 minutes); photos from a phone are
+// a few MB at most. Bigger files are refused before they reach the model.
+export const MAX_BYTES = { audio: 5_000_000, image: 10_000_000 };
 
 export interface Deps {
   db: {
@@ -18,12 +23,14 @@ export interface Deps {
     context(whatsapp: string): Promise<Context | null>;
     setPending(whatsapp: string, plan: Plan | null): Promise<void>;
     confirm(whatsapp: string, waId: string): Promise<Confirmed>;
+    logUsage(whatsapp: string, waId: string, kind: 'text' | 'audio' | 'image', usage: Usage): Promise<void>;
   };
-  read(text: string, ctx: Context): Promise<Extraction>;
+  read(msg: Message, ctx: Context): Promise<Reading>;
   wa: {
     sendText(to: string, text: string): Promise<void>;
     sendButtons(to: string, text: string, buttons: { id: string; title: string }[], shortText: string): Promise<void>;
     markRead(messageId: string): Promise<void>;
+    downloadMedia(mediaId: string, maxBytes: number): Promise<Media>;
   };
   log?(message: string, error?: unknown): void;
 }
@@ -56,6 +63,7 @@ export async function handle(msg: Incoming, deps: Deps): Promise<void> {
   const answer = msg.kind === 'button' ? msg.text : normalise(msg.text);
 
   if (msg.kind === 'other') return wa.sendText(to, say.notText(lang));
+  if (msg.kind === 'audio' || msg.kind === 'image') return readMessage(msg, ctx, lang, deps);
 
   // Yes / no to the entry waiting, without asking the model.
   if (YES.has(answer)) {
@@ -76,37 +84,64 @@ export async function handle(msg: Incoming, deps: Deps): Promise<void> {
   if (UNDO.has(answer)) return askUndo(ctx, to, lang, deps);
   if (HELP.has(answer)) return wa.sendText(to, say.help(lang));
   if (msg.kind === 'button' || !answer) return;
+  return readMessage(msg, ctx, lang, deps);
+}
+
+/** A typed message, voice note or photo the model has to read. */
+async function readMessage(msg: Incoming, ctx: Context, lang: Lang, deps: Deps) {
+  const { db, wa } = deps;
+  const to = msg.from;
+  const kind = msg.kind === 'audio' || msg.kind === 'image' ? msg.kind : 'text';
+
+  const message: Message = { text: msg.text };
+  if (kind !== 'text') {
+    try {
+      message.media = { kind, ...(await wa.downloadMedia(msg.mediaId ?? '', MAX_BYTES[kind])) };
+    } catch (e) {
+      if (e instanceof MediaTooBig) return wa.sendText(to, say.mediaTooBig(lang));
+      deps.log?.('downloading the media failed', e);
+      return wa.sendText(to, say.mediaFailed(lang));
+    }
+  }
 
   let reading: Extraction;
   try {
-    reading = await deps.read(msg.text, ctx);
+    const result = await deps.read(message, ctx);
+    reading = result.extraction;
+    try {
+      await db.logUsage(to, msg.id, kind, result.usage);
+    } catch (e) {
+      deps.log?.('logging token usage failed', e); // never worth losing the reply over
+    }
   } catch (e) {
     deps.log?.('reading the message failed', e);
     return wa.sendText(to, say.aiDown(lang));
   }
   const replyLang = langOf(reading);
+  const heard = kind === 'audio' && reading.heard ? heardLine(reading.heard, replyLang) : '';
 
-  if (reading.intent === 'undo_last') return askUndo(ctx, to, replyLang, deps);
+  if (reading.intent === 'undo_last') return askUndo(ctx, to, replyLang, deps, heard);
   if (reading.intent === 'reply' || !reading.entries.length) {
-    return wa.sendText(to, reading.reply ?? say.notUnderstood(replyLang));
+    return wa.sendText(to, heard + (reading.reply ?? say.notUnderstood(replyLang)));
   }
 
   const resolved = resolve(reading.entries, ctx);
   if (!resolved.ok) {
-    if (!resolved.problems.length) return wa.sendText(to, say.notUnderstood(replyLang));
-    return wa.sendText(to, renderProblems(resolved.problems, reading.entries.length, replyLang, ctx.items.map((i) => i.name)));
+    if (!resolved.problems.length) return wa.sendText(to, heard + say.notUnderstood(replyLang));
+    return wa.sendText(to, heard +
+      renderProblems(resolved.problems, reading.entries.length, replyLang, ctx.items.map((i) => i.name)));
   }
   const plan: Plan = { action: 'save', lang: replyLang, entries: resolved.entries, drafts: reading.entries };
   await db.setPending(to, plan);
-  return confirmButtons(to, renderPlan(plan, ctx.today), replyLang, deps);
+  return confirmButtons(to, heard + renderPlan(plan, ctx.today), replyLang, deps);
 }
 
-async function askUndo(ctx: Context, to: string, lang: Lang, deps: Deps) {
+async function askUndo(ctx: Context, to: string, lang: Lang, deps: Deps, heard = '') {
   const last = ctx.last_saved;
-  if (!last) return deps.wa.sendText(to, say.nothingToUndo(lang));
+  if (!last) return deps.wa.sendText(to, heard + say.nothingToUndo(lang));
   const plan: Plan = { action: 'undo', lang, log_id: last.id, entries: last.plan.entries };
   await deps.db.setPending(to, plan);
-  return confirmButtons(to, renderPlan(plan, ctx.today), lang, deps);
+  return confirmButtons(to, heard + renderPlan(plan, ctx.today), lang, deps);
 }
 
 function confirmButtons(to: string, text: string, lang: Lang, deps: Deps) {

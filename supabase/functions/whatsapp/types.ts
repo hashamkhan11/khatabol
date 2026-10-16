@@ -69,6 +69,24 @@ export interface Extraction {
   entries: Draft[];
   /** For intent "reply": a question about missing details, or a short answer. */
   reply: string | null;
+  /** Voice notes: what he said, written out, so he can check it was heard right. */
+  heard: string | null;
+}
+
+/** A voice note or photo, downloaded from WhatsApp. */
+export interface Media {
+  mime: string;
+  data: Uint8Array;
+}
+
+/** What one reading cost, from the model's own count. */
+export interface Usage {
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  thinking_tokens: number;
+  /** The part of input_tokens that was the voice note or photo. */
+  media_tokens: number;
 }
 
 // ==================== WHAT GETS SAVED ====================

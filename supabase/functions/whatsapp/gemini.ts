@@ -2,7 +2,7 @@
 // replacing this file: the rest of the bot only sees an Extraction.
 
 import { contextPrompt, RESPONSE_SCHEMA, SYSTEM_PROMPT } from './prompt.ts';
-import type { Context, Draft, Extraction } from './types.ts';
+import type { Context, Draft, Extraction, Media, Usage } from './types.ts';
 
 export interface GeminiConfig {
   apiKey: string;
@@ -12,12 +12,40 @@ export interface GeminiConfig {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** What the user sent: typed text, or a voice note or photo with its caption. */
+export interface Message {
+  text: string;
+  media?: Media & { kind: 'audio' | 'image' };
+}
+
+export interface Reading {
+  extraction: Extraction;
+  usage: Usage;
+}
+
+function base64(bytes: Uint8Array): string {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+function userParts(msg: Message, ctx: Context) {
+  const context = contextPrompt(ctx);
+  if (!msg.media) return [{ text: `${context}\n\nMessage:\n${msg.text}` }];
+  const what = msg.media.kind === 'audio' ? 'Voice note (attached).' : 'Photo (attached).';
+  const caption = msg.text.trim() ? `\nCaption: ${msg.text}` : '';
+  return [
+    { inlineData: { mimeType: msg.media.mime, data: base64(msg.media.data) } },
+    { text: `${context}\n\nMessage: ${what}${caption}` },
+  ];
+}
+
 export async function extract(
-  text: string, ctx: Context, cfg: GeminiConfig, fetchFn = fetch, wait = sleep,
-): Promise<Extraction> {
+  msg: Message, ctx: Context, cfg: GeminiConfig, fetchFn = fetch, wait = sleep,
+): Promise<Reading> {
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-    contents: [{ role: 'user', parts: [{ text: `${contextPrompt(ctx)}\n\nMessage:\n${text}` }] }],
+    contents: [{ role: 'user', parts: userParts(msg, ctx) }],
     generationConfig: {
       temperature: 0,
       responseMimeType: 'application/json',
@@ -28,8 +56,10 @@ export async function extract(
   // Busy (503, 429, other 5xx): wait and try again, then move to the next
   // model. Not found (404): next model. Anything else is a real error.
   let res: Response | undefined;
+  let used = '';
   let failure = '';
   models: for (const model of cfg.models) {
+    used = model;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
     for (const delay of [0, 2000, 5000]) {
       if (delay) await wait(delay);
@@ -50,7 +80,23 @@ export async function extract(
   const parts: { text?: string; thought?: boolean }[] = json?.candidates?.[0]?.content?.parts ?? [];
   const answer = parts.filter((p) => !p.thought && p.text).map((p) => p.text).join('');
   if (!answer) throw new Error(`Gemini returned no text: ${JSON.stringify(json).slice(0, 300)}`);
-  return sanitize(JSON.parse(answer));
+  return { extraction: sanitize(JSON.parse(answer)), usage: usageOf(json, used) };
+}
+
+/** Token counts as Gemini reports them. */
+function usageOf(json: Record<string, unknown>, model: string): Usage {
+  // deno-lint-ignore no-explicit-any
+  const u = (json.usageMetadata ?? {}) as any;
+  const count = (v: unknown) => (typeof v === 'number' && v > 0 ? Math.round(v) : 0);
+  const details: { modality?: string; tokenCount?: number }[] =
+    Array.isArray(u.promptTokensDetails) ? u.promptTokensDetails : [];
+  return {
+    model,
+    input_tokens: count(u.promptTokenCount),
+    output_tokens: count(u.candidatesTokenCount),
+    thinking_tokens: count(u.thoughtsTokenCount),
+    media_tokens: details.filter((d) => d.modality !== 'TEXT').reduce((sum, d) => sum + count(d.tokenCount), 0),
+  };
 }
 
 // ==================== NEVER TRUST THE MODEL'S JSON ====================
@@ -111,5 +157,6 @@ export function sanitize(raw: unknown): Extraction {
     intent: oneOf(r.intent, ['record', 'undo_last', 'reply'] as const) ?? (entries.length ? 'record' : 'reply'),
     entries: entries.slice(0, 10),
     reply: typeof r.reply === 'string' && r.reply.trim() ? r.reply.trim().slice(0, 1000) : null,
+    heard: typeof r.heard === 'string' && r.heard.trim() ? r.heard.trim().slice(0, 600) : null,
   };
 }

@@ -200,6 +200,11 @@ export function renderProblems(problems: Problem[], entryCount: number, lang: La
   return [t(lang, 'Thori si baat reh gayi:', 'I need a little more:'), ...lines].join('\n');
 }
 
+/** Shown above the reply to a voice note, so a mishearing is easy to spot. */
+export function heardLine(heard: string, lang: Lang): string {
+  return `🎤 ${t(lang, 'Maine suna', 'I heard')}: "${heard}"\n\n`;
+}
+
 export const say = {
   help: (lang: Lang) => t(lang,
     'Assalam o alaikum! Apna hisaab aise likh kar bhejein:\n' +
@@ -217,8 +222,14 @@ export const say = {
       '• 20 kg of stock got damaged\n\n' +
       "I'll read it back. Tap *Yes* and it is saved. Made a mistake? Send *undo*."),
   notText: (lang: Lang) => t(lang,
-    'Abhi main sirf likha hua message samajhta hoon. Voice note aur tasveer jald.',
-    'For now I can only read text messages. Voice notes and pictures are coming soon.'),
+    'Main likha hua message, voice note aur tasveer samajhta hoon. Video aur document abhi nahi.',
+    'I can read text messages, voice notes and photos. Not videos or documents yet.'),
+  mediaTooBig: (lang: Lang) => t(lang,
+    'Yeh bohat lamba/bara hai. Voice note 2-3 minute tak ka bhejein, ya tasveer chhoti kar ke.',
+    'That is too long or too big. Send a voice note of up to 2-3 minutes, or a smaller photo.'),
+  mediaFailed: (lang: Lang) => t(lang,
+    'Yeh file khul nahi saki. Dobara bhejein, ya likh kar bhej dein.',
+    'I could not open that file. Please send it again, or type it.'),
   nothingPending: (lang: Lang) => t(lang, 'Koi entry intezar mein nahi. Nayi entry bhejein.', 'Nothing is waiting. Send a new entry.'),
   discarded: (lang: Lang) => t(lang, 'Theek hai, kuch save nahi hua.', 'OK, nothing was saved.'),
   nothingToUndo: (lang: Lang) => t(lang, 'Undo karne ke liye koi entry nahi.', 'There is nothing to undo.'),

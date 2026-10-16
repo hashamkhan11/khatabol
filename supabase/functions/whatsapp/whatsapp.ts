@@ -1,5 +1,7 @@
 // WhatsApp Cloud API: checking that a webhook really came from Meta, reading
-// the messages in it, and sending replies.
+// the messages in it, downloading voice notes and photos, and sending replies.
+
+import type { Media } from './types.ts';
 
 export interface WhatsAppConfig {
   token: string;
@@ -11,10 +13,17 @@ export interface WhatsAppConfig {
 export interface Incoming {
   id: string;
   from: string;
-  /** text: typed message. button: a tap on one of our reply buttons. other: voice, image... */
-  kind: 'text' | 'button' | 'other';
+  /**
+   * text: typed message. button: a tap on one of our reply buttons.
+   * audio: voice note. image: photo (text is its caption). other: video, sticker...
+   */
+  kind: 'text' | 'button' | 'audio' | 'image' | 'other';
   text: string;
+  /** audio and image: WhatsApp's media id, to download it. */
+  mediaId?: string;
 }
+
+export class MediaTooBig extends Error {}
 
 /**
  * Meta signs every webhook with the app secret (X-Hub-Signature-256).
@@ -49,6 +58,8 @@ export function parseWebhook(body: unknown): Incoming[] {
           out.push({ id: m.id, from: m.from, kind: 'button', text: String(m.interactive.button_reply?.id ?? '') });
         } else if (m.type === 'button') {
           out.push({ id: m.id, from: m.from, kind: 'button', text: String(m.button?.payload ?? m.button?.text ?? '') });
+        } else if ((m.type === 'audio' || m.type === 'image') && typeof m[m.type]?.id === 'string') {
+          out.push({ id: m.id, from: m.from, kind: m.type, text: String(m[m.type].caption ?? ''), mediaId: m[m.type].id });
         } else {
           out.push({ id: m.id, from: m.from, kind: 'other', text: '' });
         }
@@ -97,6 +108,26 @@ export class WhatsApp {
     } catch {
       // not worth failing a reply over
     }
+  }
+
+  /**
+   * A voice note or photo the user sent. WhatsApp gives a short-lived link
+   * for the media id; both requests need the token.
+   */
+  async downloadMedia(mediaId: string, maxBytes: number): Promise<Media> {
+    const auth = { authorization: `Bearer ${this.cfg.token}` };
+    const infoRes = await this.fetchFn(`https://graph.facebook.com/${this.cfg.apiVersion}/${mediaId}`, { headers: auth });
+    if (!infoRes.ok) throw new Error(`WhatsApp media ${infoRes.status}: ${(await infoRes.text()).slice(0, 300)}`);
+    const info = await infoRes.json();
+    if (Number(info.file_size) > maxBytes) throw new MediaTooBig(`${info.file_size} bytes`);
+
+    const res = await this.fetchFn(String(info.url), { headers: auth });
+    if (!res.ok) throw new Error(`WhatsApp media download ${res.status}`);
+    const data = new Uint8Array(await res.arrayBuffer());
+    if (data.byteLength > maxBytes) throw new MediaTooBig(`${data.byteLength} bytes`);
+    // "audio/ogg; codecs=opus" -> "audio/ogg"
+    const mime = String(info.mime_type ?? res.headers.get('content-type') ?? '').split(';')[0].trim();
+    return { mime, data };
   }
 
   async post(payload: Record<string, unknown>) {

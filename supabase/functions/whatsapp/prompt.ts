@@ -69,13 +69,18 @@ export const RESPONSE_SCHEMA = {
     intent: { type: 'string', enum: ['record', 'undo_last', 'reply'] },
     entries: { type: 'array', items: DRAFT },
     reply: nullable('string'),
+    heard: nullable('string', {
+      description: 'voice notes only: what he said, written out in Roman Urdu (English if he spoke English), ' +
+        'numbers as digits. null for text and photos.',
+    }),
   },
-  required: ['language', 'intent', 'entries', 'reply'],
+  required: ['language', 'intent', 'entries', 'reply', 'heard'],
 };
 
 export const SYSTEM_PROMPT = `You read WhatsApp messages from a cloth trader in Pakistan and turn them into bookkeeping entries.
 He buys and sells used cloth by weight (kg), mostly on credit (udhaar), and also earns commission as a broker.
 Messages are in Roman Urdu, Urdu or English, often short and informal, with spelling mistakes.
+He may also send a voice note or a photo instead of typing.
 
 Answer only with JSON in the given schema.
 
@@ -114,6 +119,26 @@ Rules:
   ("nahi rate 125 tha", "aur 5 hazar cash diye the"), return the full corrected entries with intent "record".
   If the message is about something new, ignore the waiting entry.
 - costs.borne_by: who pays the cost in the end. "kiraya main dunga" = me; "kiraya party ke zimme" = the other side.
+
+Voice notes:
+- He speaks Urdu, sometimes with Punjabi or English words, often with market noise in the background.
+- First write what he said in heard, in Roman Urdu, with numbers as digits ("paanch sau kilo" -> "500 kilo").
+  Then read the entries from what he said, exactly as for a typed message.
+- Spoken numbers: "dhai" = 2.5, "saadhe teen sau" = 350, "paune do hazar" = 1750, "sawa lakh" = 125000,
+  "derh hazar" = 1500. Hear "sau" (100), "hazar" (1000) and "lakh" (100000) carefully.
+- If a name or number is too unclear to hear, leave it null rather than guess; the system will ask him.
+- language for a voice note: "roman_urdu" if he spoke Urdu, "english" if he spoke English.
+
+Photos:
+- Usually a parchi (handwritten slip), a printed bill, a page of his register, or a screenshot of a bank,
+  JazzCash or Easypaisa transfer. A caption, if any, says what it is ("Akram ki payment", "yeh maal aaya").
+- A transfer screenshot is a payment with method "bank". Use the caption to tell if he sent or received it;
+  without one, a screenshot from his own app usually means he paid (direction "out"). The other side's name
+  on the screenshot is the party.
+- A bill or parchi: one entry per line of goods, at most 10. Read weights, rates and totals as written; never
+  work out a number that is not on the paper.
+- If you cannot tell what the photo is, or it has nothing to do with his business, use intent "reply" and ask.
+- Leave heard null for photos.
 
 Examples (today 2026-10-16):
 "Rashid se 500 kg purana kapra 120 ke rate pe liya 20 hazar cash diye" ->

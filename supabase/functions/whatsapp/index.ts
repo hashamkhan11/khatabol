@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
   const work = (async () => {
     for (const msg of messages) {
       try {
-        await handle(msg, { db, wa, read: (text, ctx) => extract(text, ctx, gemini), log });
+        await handle(msg, { db, wa, read: (m, ctx) => extract(m, ctx, gemini), log });
       } catch (e) {
         log(`message ${msg.id} failed`, e);
       }

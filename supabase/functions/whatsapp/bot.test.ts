@@ -8,8 +8,8 @@ import { extract, sanitize } from './gemini.ts';
 import { RESPONSE_SCHEMA } from './prompt.ts';
 import { renderConfirmed, renderPlan } from './render.ts';
 import { looseKey, partyRef, resolve } from './resolve.ts';
-import type { Confirmed, Context, Draft, Extraction, Plan } from './types.ts';
-import { parseWebhook, verifySignature } from './whatsapp.ts';
+import type { Confirmed, Context, Draft, Extraction, Plan, Usage } from './types.ts';
+import { MediaTooBig, parseWebhook, verifySignature, WhatsApp } from './whatsapp.ts';
 
 const ctx = (extra: Partial<Context> = {}): Context => ({
   today: '2026-10-16',
@@ -183,31 +183,60 @@ describe('when Gemini is busy', () => {
 
   test('it waits and tries again', async () => {
     const g = fakeGemini({ main: [503] });
-    const e = await extract('hi', ctx(), cfg, g.fetchFn, noWait);
-    assert.equal(e.reply, 'hi');
+    const r = await extract({ text: 'hi' }, ctx(), cfg, g.fetchFn, noWait);
+    assert.equal(r.extraction.reply, 'hi');
     assert.deepEqual(g.calls, ['main', 'main']);
   });
 
   test('it moves to the backup model when the main one stays busy or is missing', async () => {
     const busy = fakeGemini({ main: [503, 429, 503] });
-    await extract('hi', ctx(), cfg, busy.fetchFn, noWait);
+    await extract({ text: 'hi' }, ctx(), cfg, busy.fetchFn, noWait);
     assert.deepEqual(busy.calls, ['main', 'main', 'main', 'backup']);
 
     const missing = fakeGemini({ main: [404] });
-    await extract('hi', ctx(), cfg, missing.fetchFn, noWait);
+    await extract({ text: 'hi' }, ctx(), cfg, missing.fetchFn, noWait);
     assert.deepEqual(missing.calls, ['main', 'backup']);
   });
 
   test('a bad request is not retried', async () => {
     const g = fakeGemini({ main: [400] });
-    await assert.rejects(extract('hi', ctx(), cfg, g.fetchFn, noWait), /Gemini main 400/);
+    await assert.rejects(extract({ text: 'hi' }, ctx(), cfg, g.fetchFn, noWait), /Gemini main 400/);
     assert.deepEqual(g.calls, ['main']);
   });
 
   test('when every model is busy it gives up with the last error', async () => {
     const g = fakeGemini({ main: [503, 503, 503], backup: [503, 503, 503] });
-    await assert.rejects(extract('hi', ctx(), cfg, g.fetchFn, noWait), /Gemini backup 503/);
+    await assert.rejects(extract({ text: 'hi' }, ctx(), cfg, g.fetchFn, noWait), /Gemini backup 503/);
     assert.equal(g.calls.length, 6);
+  });
+});
+
+describe('voice notes and photos go to Gemini, with the token count back', () => {
+  test('the media is sent inline next to the caption, and the usage is read from the answer', async () => {
+    let sent: any;
+    const fetchFn = (async (_url: string, init: RequestInit) => {
+      sent = JSON.parse(String(init.body));
+      return new Response(JSON.stringify({
+        candidates: [{ content: { parts: [
+          { text: 'thinking...', thought: true },
+          { text: JSON.stringify({ language: 'roman_urdu', intent: 'reply', entries: [], reply: 'ok', heard: ' Rashid se 500 kilo liya ' }) },
+        ] } }],
+        usageMetadata: {
+          promptTokenCount: 5200, candidatesTokenCount: 310, thoughtsTokenCount: 640,
+          promptTokensDetails: [{ modality: 'TEXT', tokenCount: 4240 }, { modality: 'AUDIO', tokenCount: 960 }],
+        },
+      }));
+    }) as unknown as typeof fetch;
+
+    const r = await extract(
+      { text: 'Rashid wala', media: { kind: 'audio', mime: 'audio/ogg', data: new Uint8Array([104, 105]) } },
+      ctx(), { apiKey: 'k', models: ['main'] }, fetchFn,
+    );
+    const parts = sent.contents[0].parts;
+    assert.deepEqual(parts[0], { inlineData: { mimeType: 'audio/ogg', data: 'aGk=' } });
+    assert.match(parts[1].text, /Message: Voice note \(attached\)\.\nCaption: Rashid wala$/);
+    assert.equal(r.extraction.heard, 'Rashid se 500 kilo liya');
+    assert.deepEqual(r.usage, { model: 'main', input_tokens: 5200, output_tokens: 310, thinking_tokens: 640, media_tokens: 960 });
   });
 });
 
@@ -229,20 +258,42 @@ describe('webhook', () => {
       messages: [
         { id: 'm1', from: '923001234567', type: 'text', text: { body: 'Akram se 5000 mile' } },
         { id: 'm2', from: '923001234567', type: 'interactive', interactive: { type: 'button_reply', button_reply: { id: 'yes', title: 'Haan' } } },
-        { id: 'm3', from: '923001234567', type: 'audio', audio: { id: 'a' } },
+        { id: 'm3', from: '923001234567', type: 'audio', audio: { id: 'a1', mime_type: 'audio/ogg; codecs=opus', voice: true } },
+        { id: 'm4', from: '923001234567', type: 'image', image: { id: 'i1', caption: 'Akram ki payment' } },
+        { id: 'm5', from: '923001234567', type: 'video', video: { id: 'v1' } },
       ],
     } }] }] });
-    assert.deepEqual(msgs.map((m) => [m.id, m.kind, m.text]), [
-      ['m1', 'text', 'Akram se 5000 mile'], ['m2', 'button', 'yes'], ['m3', 'other', ''],
+    assert.deepEqual(msgs.map((m) => [m.id, m.kind, m.text, m.mediaId]), [
+      ['m1', 'text', 'Akram se 5000 mile', undefined], ['m2', 'button', 'yes', undefined],
+      ['m3', 'audio', '', 'a1'], ['m4', 'image', 'Akram ki payment', 'i1'], ['m5', 'other', '', undefined],
     ]);
+  });
+
+  test('media is downloaded through its short-lived link, and refused when too big', async () => {
+    const urls: string[] = [];
+    const fetchFn = (async (url: string, init: RequestInit) => {
+      urls.push(`${url} ${(init.headers as Record<string, string>).authorization}`);
+      if (url.endsWith('/a1')) return Response.json({ url: 'https://lookaside.example/file?id=a1', mime_type: 'audio/ogg; codecs=opus', file_size: 3 });
+      if (url.endsWith('/big')) return Response.json({ url: 'https://lookaside.example/big', mime_type: 'image/jpeg', file_size: 50_000_000 });
+      return new Response(new Uint8Array([1, 2, 3]));
+    }) as unknown as typeof fetch;
+    const wa = new WhatsApp({ token: 'tok', phoneNumberId: '1', apiVersion: 'v25.0' }, fetchFn);
+
+    const media = await wa.downloadMedia('a1', 100);
+    assert.deepEqual(media, { mime: 'audio/ogg', data: new Uint8Array([1, 2, 3]) });
+    assert.deepEqual(urls, ['https://graph.facebook.com/v25.0/a1 Bearer tok', 'https://lookaside.example/file?id=a1 Bearer tok']);
+    await assert.rejects(wa.downloadMedia('big', 100), MediaTooBig);
   });
 });
 
 // ==================== THE CONVERSATION ====================
 
+const usage: Usage = { model: 'gemini-test', input_tokens: 4000, output_tokens: 300, thinking_tokens: 0, media_tokens: 0 };
+
 function fakes(context: Context | null, reading?: Extraction | Error) {
   const sent: string[] = [];
   const calls: string[] = [];
+  const read: { text: string; media?: string }[] = [];
   let pending: Plan | null = context?.pending ?? null;
   const seen = new Set<string>();
   const deps: Deps = {
@@ -256,24 +307,35 @@ function fakes(context: Context | null, reading?: Extraction | Error) {
         pending = null;
         return { action: 'save', saved: [], balances: [{ name: 'Rashid', balance: -40000 }] };
       },
+      logUsage: async (_, waId, kind) => { calls.push(`usage:${kind}`); },
     },
-    read: async () => {
+    read: async (m) => {
       calls.push('read');
+      read.push({ text: m.text, ...(m.media ? { media: `${m.media.kind} ${m.media.mime} ${m.media.data.length}` } : {}) });
       if (reading instanceof Error) throw reading;
-      return reading ?? { language: 'roman_urdu', intent: 'reply', entries: [], reply: null };
+      return { extraction: reading ?? { language: 'roman_urdu', intent: 'reply', entries: [], reply: null, heard: null }, usage };
     },
     wa: {
       sendText: async (_, text) => { sent.push(text); },
       sendButtons: async (_, text, buttons) => { sent.push(`${text}\n[${buttons.map((b) => b.title).join('] [')}]`); },
       markRead: async () => {},
+      downloadMedia: async (id, maxBytes) => {
+        if (id === 'huge') throw new MediaTooBig('huge');
+        if (id === 'gone') throw new Error('WhatsApp media 404');
+        calls.push(`download:${maxBytes}`);
+        return { mime: id.startsWith('img') ? 'image/jpeg' : 'audio/ogg', data: new Uint8Array(10) };
+      },
     },
   };
-  return { deps, sent, calls, pending: () => pending };
+  return { deps, sent, calls, read, pending: () => pending };
 }
 
 const text = (body: string, id = `m-${Math.random()}`) => ({ id, from: '923001234567', kind: 'text' as const, text: body });
 const reading = (entries: Draft[], extra: Partial<Extraction> = {}): Extraction =>
-  ({ language: 'roman_urdu', intent: 'record', entries, reply: null, ...extra });
+  ({ language: 'roman_urdu', intent: 'record', entries, reply: null, heard: null, ...extra });
+const voice = (mediaId = 'aud1') => ({ id: `v-${Math.random()}`, from: '923001234567', kind: 'audio' as const, text: '', mediaId });
+const photo = (caption = '', mediaId = 'img1') =>
+  ({ id: `p-${Math.random()}`, from: '923001234567', kind: 'image' as const, text: caption, mediaId });
 
 describe('conversation', () => {
   test('entry -> read back with buttons -> "haan" saves it and shows the balance', async () => {
@@ -283,7 +345,7 @@ describe('conversation', () => {
     assert.equal(f.pending()?.action, 'save');
 
     await handle(text('Haan!'), f.deps);
-    assert.deepEqual(f.calls, ['read', 'pending:save', 'confirm:save']);
+    assert.deepEqual(f.calls, ['read', 'usage:text', 'pending:save', 'confirm:save']);
     assert.match(f.sent[1], /Save ho gaya[\s\S]*Rashid: Rs 40,000 dena hai/);
   });
 
@@ -291,7 +353,7 @@ describe('conversation', () => {
     const f = fakes(ctx(), reading([purchase]));
     await handle(text('Rashid se 500 kg 120 pe liya'), f.deps);
     await handle({ id: 'b1', from: '923001234567', kind: 'button', text: 'no' }, f.deps);
-    assert.deepEqual(f.calls, ['read', 'pending:save', 'pending:cleared']);
+    assert.deepEqual(f.calls, ['read', 'usage:text', 'pending:save', 'pending:cleared']);
     assert.equal(f.sent[1], 'Theek hai, kuch save nahi hua.');
   });
 
@@ -300,7 +362,7 @@ describe('conversation', () => {
     await handle(text('Rashid se 500 kg 120 pe liya'), f.deps);
     await handle(text('nahi rate 125 tha'), f.deps);
     assert.match(f.sent[1], /500 kg × 125 = Rs 62,500/);
-    assert.deepEqual(f.calls, ['read', 'pending:save', 'read', 'pending:save']);
+    assert.deepEqual(f.calls, ['read', 'usage:text', 'pending:save', 'read', 'usage:text', 'pending:save']);
   });
 
   test('a greeting or "madad" gets examples of what to send, without asking the model', async () => {
@@ -346,14 +408,58 @@ describe('conversation', () => {
     assert.equal(f.sent.length, 1);
   });
 
-  test('voice notes get a polite "text only for now"; a model outage gets an apology', async () => {
+  test('videos and documents get a polite "not yet"; a model outage gets an apology', async () => {
     const f = fakes(ctx(), new Error('Gemini 503'));
     await handle({ id: 'v', from: '923001234567', kind: 'other', text: '' }, f.deps);
     await handle(text('Rashid se liya'), f.deps);
     assert.deepEqual(f.sent, [
-      'Abhi main sirf likha hua message samajhta hoon. Voice note aur tasveer jald.',
+      'Main likha hua message, voice note aur tasveer samajhta hoon. Video aur document abhi nahi.',
       'Abhi message parhne mein masla hai. Thori der baad dobara bhejein.',
     ]);
+  });
+
+  test('a voice note is read back with what was heard on top, then "haan" saves it', async () => {
+    const f = fakes(ctx(), reading([purchase], { heard: 'Rasheed se 500 kilo liya 120 rate 20 hazar cash diye' }));
+    await handle(voice(), f.deps);
+    assert.deepEqual(f.read, [{ text: '', media: 'audio audio/ogg 10' }]);
+    assert.match(f.sent[0], /^🎤 Maine suna: "Rasheed se 500 kilo liya 120 rate 20 hazar cash diye"\n\n🛒 \*Khareed\* · Rashid se/);
+    assert.match(f.sent[0], /\[✅ Haan, save karo\] \[❌ Nahi\]$/);
+    await handle(text('haan'), f.deps);
+    assert.deepEqual(f.calls, ['download:5000000', 'read', 'usage:audio', 'pending:save', 'confirm:save']);
+  });
+
+  test('a voice note with something missing still shows what was heard', async () => {
+    const f = fakes(ctx(), reading([draft({ type: 'payment', party: 'Rashid', amount: null })], { heard: 'Rashid ko diye' }));
+    await handle(voice(), f.deps);
+    assert.match(f.sent[0], /^🎤 Maine suna: "Rashid ko diye"\n\nThori si baat reh gayi:/);
+    assert.equal(f.pending(), null);
+  });
+
+  test('a photo goes to the model with its caption, and nothing "heard" is shown', async () => {
+    const f = fakes(ctx(), reading([draft({ type: 'payment', party: 'Akram Traders', direction: 'in', amount: 15000, method: 'bank' })],
+      { heard: 'should not show' }));
+    await handle(photo('Akram ki payment'), f.deps);
+    assert.deepEqual(f.read, [{ text: 'Akram ki payment', media: 'image image/jpeg 10' }]);
+    assert.doesNotMatch(f.sent[0], /Maine suna/);
+    assert.deepEqual(f.calls, ['download:10000000', 'read', 'usage:image', 'pending:save']);
+  });
+
+  test('media too big or that cannot be downloaded gets a clear reply, without asking the model', async () => {
+    const f = fakes(ctx(), reading([purchase]));
+    await handle(voice('huge'), f.deps);
+    await handle(photo('', 'gone'), f.deps);
+    assert.deepEqual(f.sent, [
+      'Yeh bohat lamba/bara hai. Voice note 2-3 minute tak ka bhejein, ya tasveer chhoti kar ke.',
+      'Yeh file khul nahi saki. Dobara bhejein, ya likh kar bhej dein.',
+    ]);
+    assert.deepEqual(f.calls, []);
+  });
+
+  test('typed messages log their tokens too, and a failing log does not stop the reply', async () => {
+    const f = fakes(ctx(), reading([purchase]));
+    f.deps.db.logUsage = async () => { throw new Error('db down'); };
+    await handle(text('Rasheed se 500 kg 120 pe liya 20 hazar diye'), f.deps);
+    assert.match(f.sent[0], /\*Khareed\*/);
   });
 
   test('English messages get English replies', async () => {

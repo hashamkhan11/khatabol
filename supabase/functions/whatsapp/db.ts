@@ -1,7 +1,7 @@
 // Calls the bot_* database functions through the Supabase REST API with the
 // service key. The bot never touches tables directly.
 
-import type { Confirmed, Context, Plan } from './types.ts';
+import type { Confirmed, Context, Plan, Usage } from './types.ts';
 
 export class DbError extends Error {}
 
@@ -30,6 +30,13 @@ export class Db {
 
   confirm(whatsapp: string, waId: string): Promise<Confirmed> {
     return this.rpc('bot_confirm', { p_whatsapp: whatsapp, p_wa_id: waId });
+  }
+
+  logUsage(whatsapp: string, waId: string, kind: 'text' | 'audio' | 'image', u: Usage): Promise<void> {
+    return this.rpc('bot_log_usage', {
+      p_whatsapp: whatsapp, p_wa_id: waId, p_kind: kind, p_model: u.model,
+      p_input: u.input_tokens, p_output: u.output_tokens, p_thinking: u.thinking_tokens, p_media: u.media_tokens,
+    });
   }
 
   private async rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {

@@ -104,7 +104,7 @@ The data model covers:
 - [x] **1. Ledger database:** schema, business functions and a test suite
 - [x] **2. Mobile app:** Flutter app on Supabase: dashboard, khata, deals, stock register, expenses and profit, all in Roman Urdu
 - [x] **3. WhatsApp bot (text):** Urdu, Roman Urdu and English messages, read back for a yes before saving, with undo
-- [ ] **4. Voice notes and screenshots**
+- [x] **4. Voice notes and photos:** Urdu voice notes, parchis, bills and payment screenshots, with a token log to track cost
 - [ ] **5. Queries and summaries:** "Rashid ka balance?", statements and a daily summary
 
 ## Repository layout

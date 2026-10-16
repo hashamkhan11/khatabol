@@ -39,6 +39,7 @@ A number must be listed in `bot_senders` (linked to a user) to get any answer.
 | Names, balances, the entry waiting and the last saved one | `bot_context` |
 | Keep the entry read back until the user says yes | `bot_set_pending` |
 | Save it (or undo the last one) as the linked user, in one transaction | `bot_confirm` |
+| Log the tokens each message used | `bot_log_usage` (into `bot_usage`; per day in the `bot_usage_daily` view) |
 
 ## Files
 

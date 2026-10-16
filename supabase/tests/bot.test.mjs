@@ -189,3 +189,30 @@ describe('undo and redelivery', () => {
     assert.equal(await L.one('bot_claim_message', { p_wa_id: 'wamid.x' }), false);
   });
 });
+
+describe('token log', () => {
+  const logUsage = (extra = {}) => L.rpc('bot_log_usage', {
+    p_whatsapp: NUMBER, p_wa_id: 'wamid.1', p_kind: 'text', p_model: 'gemini-3.8-flash',
+    p_input: 4000, p_output: 300, p_thinking: 700, p_media: 0, ...extra,
+  });
+
+  test('each message the model read is logged and summed per day with the paid-plan estimate', async () => {
+    await logUsage();
+    await logUsage({ p_wa_id: 'wamid.2', p_kind: 'audio', p_input: 5000, p_media: 960 });
+    const [day] = await asAdmin(() => L.query('select * from bot_usage_daily'));
+    assert.equal(Number(day.messages), 2);
+    assert.equal(Number(day.voice_notes), 1);
+    assert.equal(Number(day.input_tokens), 9000);
+    assert.equal(Number(day.output_tokens), 2000);
+    // 9000 × 0.75 + 2000 × 3.75 = 14250 per million
+    assert.equal(Number(day.est_usd), 0.0143);
+  });
+
+  test('only the bot can write it, and only for a linked number', async () => {
+    await assert.rejects(logUsage({ p_whatsapp: '923009999999' }), /foreign key/);
+    await assert.rejects(logUsage({ p_kind: 'video' }), /bot_usage_kind/);
+    await L.signIn(me);
+    await assert.rejects(logUsage(), /permission denied/);
+    await assert.rejects(L.query('select * from bot_usage_daily'), /permission denied/);
+  });
+});
