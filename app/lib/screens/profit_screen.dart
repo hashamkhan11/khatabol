@@ -124,7 +124,7 @@ class _ProfitScreenState extends State<ProfitScreen> {
                       const Padding(
                         padding: EdgeInsets.all(16),
                         child: Text(
-                          'Kuch maal khareed darj hone se pehle bik gaya, is liye us ki laagat andaza hai. '
+                          'Kuch maal khareed darj hone se pehle bika ya stock se nikla, is liye us ki laagat andaza hai. '
                           'Sahi munafay ke liye baqi khareed darj karein.',
                           style: TextStyle(color: AppColors.pay),
                         ),

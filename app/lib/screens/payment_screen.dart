@@ -82,6 +82,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
       onSave: _save,
       children: [
         if (widget.mode == PaymentMode.adjustment)
+          const Text('Sirf hisaab ki ghalti theek karne ke liye; munafa par asar nahi hota. '
+              'Rate kam hua ya maal wapas aaya? Sauday mein ja kar "Badlein" karein, '
+              'taake munafa aur stock bhi sahi rahein.'),
+        if (widget.mode == PaymentMode.adjustment)
           SegmentedButton<bool>(
             segments: [
               ButtonSegment(value: true, label: Text('$name se lena barhe')),

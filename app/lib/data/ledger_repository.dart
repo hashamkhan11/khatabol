@@ -180,6 +180,9 @@ class LedgerRepository {
         'p_reason': _blankToNull(reason),
       });
 
+  Future<void> cancelStockAdjustment(String id, {String? reason}) =>
+      _db.rpc('cancel_stock_adjustment', params: {'p_id': id, 'p_reason': reason});
+
   /// One cloth type's stock register, oldest first.
   Future<List<StockMove>> stockHistory(String itemId) async {
     final rows = await _db.rpc('stock_history', params: {'p_item_id': itemId}) as List;

@@ -59,6 +59,9 @@ const _dbMessages = {
   'an adjustment needs a note explaining it': 'Durusti ki wajah likhein',
   'adjustment amount cannot be zero': 'Raqam zero nahi ho sakti',
   'Not signed in': 'Pehle sign in karein',
+  'settle the khata before archiving this party': 'Pehle hisaab barabar karein, phir party archive hogi',
+  'stock must be zero before archiving this cloth type': 'Pehle stock zero karein, phir archive hoga',
+  'stock adjustment not found or already cancelled': 'Stock ki line nahi mili ya pehle hi cancel hai',
 };
 
 String _capitalise(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);

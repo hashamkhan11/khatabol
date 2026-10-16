@@ -132,6 +132,25 @@ class _StockItemScreenState extends State<StockItemScreen> {
     _view.currentState?.reload();
   }
 
+  /// A deal's stock line opens the deal; a stock in / out line can be cancelled.
+  Future<void> _onMoveTap(StockMove m) async {
+    if (m.dealId != null) return _open(DealScreen(dealId: m.dealId!));
+    final repo = Repo.of(context);
+    try {
+      final reason = await askCancelReason(
+        context,
+        title: 'Yeh stock line cancel karni hai?',
+        message: '${stockMoveTitle(m)} · ${kg(m.weightKg.abs())} · ${formatDate(m.date)}',
+      );
+      if (reason == null) return;
+      await repo.cancelStockAdjustment(m.adjustmentId!, reason: reason);
+      if (mounted) showDone(context, 'Stock line cancel ho gayi');
+      _view.currentState?.reload();
+    } catch (e) {
+      if (mounted) showError(context, e);
+    }
+  }
+
   Future<void> _toggleArchive(StockRow row) async {
     try {
       await Repo.of(context).setItemArchived(row.itemId, !row.archived);
@@ -231,10 +250,7 @@ class _StockItemScreenState extends State<StockItemScreen> {
                   const EmptyState(icon: Icons.inventory_2_outlined, message: 'Abhi koi aamad ya nikasi nahi.')
                 else
                   for (final m in moves.reversed)
-                    _MoveTile(
-                      move: m,
-                      onTap: m.dealId == null ? null : () => _open(DealScreen(dealId: m.dealId!)),
-                    ),
+                    _MoveTile(move: m, onTap: () => _onMoveTap(m)),
               ],
             ),
           ),

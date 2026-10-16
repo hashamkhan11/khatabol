@@ -298,6 +298,14 @@ describe('stock and profit', () => {
     assert.equal((await profit()).stock_losses, 1800);
   });
 
+  test('wastage before the stock is entered is flagged as an estimate', async () => {
+    await adjust('wastage', 10, { p_date: '2026-10-05' });
+    assert.equal((await profit()).has_estimates, true);
+    await purchase({ deal_date: '2026-10-01', weight_kg: 100, rate: 100 });
+    const p = await profit();
+    assert.deepEqual([p.stock_losses, p.has_estimates], [1000, false]);
+  });
+
   test('the kind decides whether stock comes in or goes out', async () => {
     await adjust('found', 50, { p_cost_per_kg: 100 });
     await adjust('sample', 5, { p_cost_per_kg: 999 });
@@ -400,10 +408,21 @@ describe('safety', () => {
   });
 
   test('archived parties keep history but take no new entries', async () => {
-    await purchase({ weight_kg: 10, rate: 100 });
+    await purchase({ weight_kg: 10, rate: 100, paid_now: 1000 });
     await L.rpc('set_party_archived', { p_id: rashid, p_archived: true });
-    assert.equal(await L.balance(rashid), -1000);
+    assert.equal((await L.query('select count(*)::int as n from khata_entries where party_id = $1', [rashid]))[0].n, 2);
     await assert.rejects(purchase({ weight_kg: 1, rate: 1 }), /archived/);
+  });
+
+  test('only a settled party or an empty cloth type can be archived', async () => {
+    await purchase({ weight_kg: 10, rate: 100 });
+    await assert.rejects(L.rpc('set_party_archived', { p_id: rashid, p_archived: true }), /settle the khata/);
+    await assert.rejects(L.rpc('set_item_archived', { p_id: cloth, p_archived: true }), /stock must be zero/);
+
+    await L.rpc('record_payment', { p_party_id: rashid, p_direction: 'out', p_amount: 1000 });
+    await sale({ weight_kg: 10, rate: 100, paid_now: 1000 });
+    await L.rpc('set_party_archived', { p_id: rashid, p_archived: true });
+    await L.rpc('set_item_archived', { p_id: cloth, p_archived: true });
   });
 
   test('bad input is rejected with a clear reason', async () => {
