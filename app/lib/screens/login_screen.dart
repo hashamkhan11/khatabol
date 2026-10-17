@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../ui/common.dart';
 import '../ui/theme.dart';
+import '../l10n/lang.dart';
 
 /// Email and password sign-in. There is no sign-up: the account is created
 /// by the owner in the Supabase dashboard, so strangers cannot register.
@@ -28,7 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signIn() async {
     if (_email.text.trim().isEmpty || _password.text.isEmpty) {
-      showError(context, 'Email aur password likhein');
+      showError(context, tr('Email aur password likhein', 'Enter email and password'));
       return;
     }
     setState(() => _busy = true);
@@ -76,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: theme.textTheme.displaySmall
                                   ?.copyWith(color: k.onInk, fontWeight: FontWeight.w800, letterSpacing: -1)),
                           const SizedBox(height: 6),
-                          Text('Apna khata, apni zubaan',
+                          Text(tr('Apna khata, apni zubaan', 'Your ledger, your language'),
                               style: theme.textTheme.titleMedium?.copyWith(color: k.onInk.withValues(alpha: 0.72))),
                         ],
                       ),
@@ -96,9 +97,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  Text('Sign in karein', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                                  Text(tr('Sign in karein', 'Sign in'), style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                                   const SizedBox(height: 4),
-                                  Text('Apne account ki email aur password likhein.', style: TextStyle(color: k.muted)),
+                                  Text(tr('Apne account ki email aur password likhein.', 'Enter your account email and password.'), style: TextStyle(color: k.muted)),
                                   const SizedBox(height: 24),
                                   TextField(
                                     controller: _email,

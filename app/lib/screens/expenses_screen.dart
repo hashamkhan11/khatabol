@@ -5,6 +5,7 @@ import '../ui/common.dart';
 import '../ui/theme.dart';
 import '../util/format.dart';
 import 'home_screen.dart';
+import '../l10n/lang.dart';
 
 /// The Kharchay tab: business costs that belong to no deal (rent, salary, tea).
 class ExpensesScreen extends StatefulWidget {
@@ -22,13 +23,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   Future<void> _cancel(Expense e) async {
     final reason = await askCancelReason(
       context,
-      title: 'Yeh kharcha cancel karna hai?',
+      title: tr('Yeh kharcha cancel karna hai?', 'Cancel this expense?'),
       message: '${e.category} · ${money(e.amount)} · ${formatDate(e.date)}',
     );
     if (reason == null || !mounted) return;
     try {
       await Repo.of(context).cancelExpense(e.id, reason: reason);
-      if (mounted) showDone(context, 'Kharcha cancel ho gaya');
+      if (mounted) showDone(context, tr('Kharcha cancel ho gaya', 'Expense cancelled'));
     } catch (err) {
       if (mounted) showError(context, err);
     }
@@ -40,10 +41,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final k = KColors.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kharchay'),
+        title: Text(tr('Kharchay', 'Expenses')),
         actions: [
           IconButton(
-            tooltip: _showCancelled ? 'Cancel shuda chhupayein' : 'Cancel shuda dikhayein',
+            tooltip: _showCancelled ? tr('Cancel shuda chhupayein', 'Hide cancelled') : tr('Cancel shuda dikhayein', 'Show cancelled'),
             icon: Icon(_showCancelled ? Icons.visibility_rounded : Icons.visibility_off_outlined),
             onPressed: () => setState(() => _showCancelled = !_showCancelled),
           ),
@@ -53,7 +54,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _add,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Naya kharcha'),
+        label: Text(tr('Naya kharcha', 'New expense')),
       ),
       body: AsyncView<List<Expense>>(
         cacheKey: 'expenses',
@@ -81,7 +82,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Is mahine', style: Theme.of(context).textTheme.labelMedium),
+                      Text(tr('Is mahine', 'This month'), style: Theme.of(context).textTheme.labelMedium),
                       const SizedBox(height: 2),
                       FittedBox(
                         fit: BoxFit.scaleDown,
@@ -94,7 +95,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('Pichle mahine', style: Theme.of(context).textTheme.labelMedium),
+                    Text(tr('Pichle mahine', 'Last month'), style: Theme.of(context).textTheme.labelMedium),
                     const SizedBox(height: 2),
                     Amount(lastMonth, size: 16, color: k.muted),
                   ],
@@ -111,7 +112,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               itemBuilder: (context, i) {
                 if (i == 0) return header;
                 if (list.isEmpty) {
-                  return const EmptyState(icon: Icons.receipt_long_outlined, message: 'Abhi koi kharcha nahi.');
+                  return EmptyState(icon: Icons.receipt_long_outlined, message: tr('Abhi koi kharcha nahi.', 'No expenses yet.'));
                 }
                 return days.build(i - 1, (e) => _ExpenseTile(expense: e, onTap: e.cancelled ? null : () => _cancel(e)));
               },
@@ -133,7 +134,7 @@ class _ExpenseTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final k = KColors.of(context);
     final e = expense;
-    final details = [if (e.paidToName != null) '${e.paidToName} ko dena hai' else 'Cash', ?e.notes].join(' · ');
+    final details = [if (e.paidToName != null) tr('${e.paidToName} ko dena hai', 'to pay ${e.paidToName}') else 'Cash', ?e.notes].join(' · ');
     return ListTile(
       onTap: onTap,
       leading: e.cancelled ? const RowIconPlain(Icons.receipt_long_outlined) : RowIcon(
@@ -180,7 +181,9 @@ class _ExpenseForm extends StatefulWidget {
 }
 
 class _ExpenseFormState extends State<_ExpenseForm> {
-  static const _defaults = ['Kiraya', 'Tankhwah', 'Bijli', 'Chai pani', 'Phone', 'Transport'];
+  static List<String> get _defaults => isEnglish
+      ? const ['Rent', 'Salary', 'Electricity', 'Tea', 'Phone', 'Transport']
+      : const ['Kiraya', 'Tankhwah', 'Bijli', 'Chai pani', 'Phone', 'Transport'];
 
   String _category = '';
   num? _amount;
@@ -196,8 +199,8 @@ class _ExpenseFormState extends State<_ExpenseForm> {
   }
 
   Future<void> _save() async {
-    if (_category.trim().isEmpty) return showError(context, 'Likhein kharcha kis cheez ka tha');
-    if (_amount == null || _amount! <= 0) return showError(context, 'Raqam likhein');
+    if (_category.trim().isEmpty) return showError(context, tr('Likhein kharcha kis cheez ka tha', 'Write what the expense was for'));
+    if (_amount == null || _amount! <= 0) return showError(context, tr('Raqam likhein', 'Enter the amount'));
     setState(() => _saving = true);
     try {
       await Repo.of(context).recordExpense(
@@ -219,7 +222,7 @@ class _ExpenseFormState extends State<_ExpenseForm> {
   Widget build(BuildContext context) {
     final options = {...widget.categories, ..._defaults}.toList();
     return FormPage(
-      title: 'Naya kharcha',
+      title: tr('Naya kharcha', 'New expense'),
       saving: _saving,
       onSave: _save,
       children: [
@@ -231,22 +234,22 @@ class _ExpenseFormState extends State<_ExpenseForm> {
             focusNode: focus,
             autofocus: true,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'Kis cheez ka', hintText: 'Kiraya, tankhwah, chai…'),
+            decoration: InputDecoration(labelText: tr('Kis cheez ka', 'What for'), hintText: tr('Kiraya, tankhwah, chai…', 'Rent, salary, tea…')),
             onChanged: (v) => _category = v,
           ),
         ),
-        NumberField(label: 'Raqam', suffix: 'Rs', onChanged: (v) => _amount = v),
+        NumberField(label: tr('Raqam', 'Amount'), suffix: 'Rs', onChanged: (v) => _amount = v),
         DateField(value: _date, onChanged: (d) => setState(() => _date = d)),
         PartyField(
-          label: 'Kis ko dena hai',
+          label: tr('Kis ko dena hai', 'Who to pay'),
           parties: widget.parties,
           value: _paidToId,
           allowNone: true,
-          noneLabel: 'Abhi cash de diye',
+          noneLabel: tr('Abhi cash de diye', 'Paid cash now'),
           onChanged: (v) => setState(() => _paidToId = v),
         ),
-        if (_paidToId != null) const FormHint('Abhi nahi diye: yeh is party ke dena mein jurr jayega.'),
-        TextField(controller: _notes, decoration: const InputDecoration(labelText: 'Note (agar ho)')),
+        if (_paidToId != null) FormHint(tr('Abhi nahi diye: yeh is party ke dena mein jurr jayega.', 'Not paid yet: this is added to what you owe this party.')),
+        TextField(controller: _notes, decoration: InputDecoration(labelText: tr('Note (agar ho)', 'Note (optional)'))),
       ],
     );
   }

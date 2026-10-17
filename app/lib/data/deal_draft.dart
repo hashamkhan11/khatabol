@@ -1,5 +1,6 @@
 import '../util/format.dart';
 import 'models.dart';
+import '../l10n/lang.dart';
 
 class CostDraft {
   CostDraft({this.description = '', this.amount, this.chargedToId, this.paidToId});
@@ -94,33 +95,33 @@ class DealDraft {
   String? validate() {
     if (partyId == null) {
       return switch (kind) {
-        DealKind.purchase => 'Supplier chunein',
-        DealKind.sale => 'Gahak chunein',
-        DealKind.commission => 'Bechne wala chunein',
+        DealKind.purchase => tr('Supplier chunein', 'Choose the supplier'),
+        DealKind.sale => tr('Gahak chunein', 'Choose the buyer'),
+        DealKind.commission => tr('Bechne wala chunein', 'Choose the seller'),
       };
     }
     if (isCommission) {
-      if (buyerId == null) return 'Khareedne wala chunein';
-      if (buyerId == partyId) return 'Bechne wala aur khareedne wala alag hon';
+      if (buyerId == null) return tr('Khareedne wala chunein', 'Choose the buyer');
+      if (buyerId == partyId) return tr('Bechne wala aur khareedne wala alag hon', 'Seller and buyer must be different');
       if (goodsThroughMe && (weightKg == null || rate == null)) {
-        return 'Paise aap ke zariye hon to wazan aur rate likhein';
+        return tr('Paise aap ke zariye hon to wazan aur rate likhein', 'Enter weight and rate when the money goes through you');
       }
-      if (commissions.isEmpty) return 'Commission likhein';
+      if (commissions.isEmpty) return tr('Commission likhein', 'Add the commission');
     } else {
-      if (itemId == null) return 'Kapre ki qisam chunein';
-      if (weightKg == null) return 'Wazan likhein';
-      if (rate == null) return 'Rate likhein';
+      if (itemId == null) return tr('Kapre ki qisam chunein', 'Choose the cloth type');
+      if (weightKg == null) return tr('Wazan likhein', 'Enter the weight');
+      if (rate == null) return tr('Rate likhein', 'Enter the rate');
     }
-    if (weightKg != null && weightKg! <= 0) return 'Wazan zero se zyada ho';
-    if (rate != null && rate! < 0) return 'Rate manfi nahi ho sakta';
-    if (paidNow != null && paidNow! < 0) return 'Di gayi raqam manfi nahi ho sakti';
+    if (weightKg != null && weightKg! <= 0) return tr('Wazan zero se zyada ho', 'Weight must be more than zero');
+    if (rate != null && rate! < 0) return tr('Rate manfi nahi ho sakta', 'Rate cannot be negative');
+    if (paidNow != null && paidNow! < 0) return tr('Di gayi raqam manfi nahi ho sakti', 'Amount paid cannot be negative');
     for (final c in costs) {
-      if (c.description.trim().isEmpty) return 'Har kharchay ka naam likhein';
-      if (c.amount == null || c.amount! <= 0) return 'Har kharchay ki raqam likhein';
+      if (c.description.trim().isEmpty) return tr('Har kharchay ka naam likhein', 'Name every cost');
+      if (c.amount == null || c.amount! <= 0) return tr('Har kharchay ki raqam likhein', 'Enter an amount for every cost');
     }
     for (final c in commissions) {
-      if (c.partyId == null) return 'Har commission ke liye chunein kis se hai';
-      if (c.value == null || c.value! <= 0) return 'Har commission ki miqdar likhein';
+      if (c.partyId == null) return tr('Har commission ke liye chunein kis se hai', 'Choose who pays each commission');
+      if (c.value == null || c.value! <= 0) return tr('Har commission ki miqdar likhein', 'Enter a value for every commission');
       if (commissionAmount(c) == null) return '${c.mode.label} commission ke liye wazan aur rate likhein';
     }
     return null;

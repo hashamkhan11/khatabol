@@ -6,6 +6,7 @@ import '../ui/theme.dart';
 import '../util/format.dart';
 import 'deal_screen.dart';
 import 'home_screen.dart';
+import '../l10n/lang.dart';
 
 /// The Stock tab: kg in stock per cloth type, valued at average cost.
 class StockScreen extends StatefulWidget {
@@ -27,10 +28,10 @@ class _StockScreenState extends State<StockScreen> {
     final primary = Theme.of(context).colorScheme.primary;
     return Scaffold(
       appBar: AppBar(
-        title: Text(_showArchived ? 'Stock archive' : 'Stock'),
+        title: Text(_showArchived ? tr('Stock archive', 'Stock archive') : 'Stock'),
         actions: [
           IconButton(
-            tooltip: _showArchived ? 'Archive chhupayein' : 'Archive dikhayein',
+            tooltip: _showArchived ? tr('Archive chhupayein', 'Hide archive') : tr('Archive dikhayein', 'Show archive'),
             icon: Icon(_showArchived ? Icons.unarchive_outlined : Icons.archive_outlined),
             onPressed: () => setState(() => _showArchived = !_showArchived),
           ),
@@ -40,7 +41,7 @@ class _StockScreenState extends State<StockScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _open(const ItemFormScreen()),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Kapre ki qisam'),
+        label: Text(tr('Kapre ki qisam', 'Cloth type')),
       ),
       body: AsyncView<List<StockRow>>(
         cacheKey: 'stock',
@@ -65,7 +66,7 @@ class _StockScreenState extends State<StockScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Kul stock', style: Theme.of(context).textTheme.labelMedium),
+                            Text(tr('Kul stock', 'Total stock'), style: Theme.of(context).textTheme.labelMedium),
                             const SizedBox(height: 2),
                             FittedBox(
                               fit: BoxFit.scaleDown,
@@ -84,7 +85,7 @@ class _StockScreenState extends State<StockScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text('Qeemat', style: Theme.of(context).textTheme.labelMedium),
+                          Text(tr('Qeemat', 'Value'), style: Theme.of(context).textTheme.labelMedium),
                           const SizedBox(height: 2),
                           Amount(totalValue, size: 17),
                         ],
@@ -93,13 +94,13 @@ class _StockScreenState extends State<StockScreen> {
                   ),
                 ),
                 if (rows.isEmpty)
-                  const EmptyState(
+                  EmptyState(
                     icon: Icons.inventory_2_outlined,
-                    message: 'Abhi kapre ki koi qisam nahi.\nJo maal aap bechte hain woh shamil karein, jaise “Purana kapra”.',
+                    message: tr('Abhi kapre ki koi qisam nahi.\nJo maal aap bechte hain woh shamil karein, jaise “Purana kapra”.', 'No cloth types yet.\nAdd the goods you trade, like “Used cloth”.'),
                   )
                 else
                   Section(
-                    title: 'Kapre ki qisam',
+                    title: tr('Kapre ki qisam', 'Cloth type'),
                     children: [
                       for (final r in rows)
                         ListTile(
@@ -107,7 +108,7 @@ class _StockScreenState extends State<StockScreen> {
                           leading: RowIcon(Icons.checkroom_rounded,
                               color: primary, background: primary.withValues(alpha: 0.1)),
                           title: Text(r.item.displayName, maxLines: 2, overflow: TextOverflow.ellipsis),
-                          subtitle: Text(r.avgCost == null ? 'Abhi koi khareed nahi' : 'Ausat ${money(r.avgCost!)}/kg'),
+                          subtitle: Text(r.avgCost == null ? tr('Abhi koi khareed nahi', 'No purchases yet') : '${tr('Ausat', 'Avg')} ${money(r.avgCost!)}/kg'),
                           trailing: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.end,
@@ -127,8 +128,8 @@ class _StockScreenState extends State<StockScreen> {
                     ],
                   ),
                 if (rows.any((r) => r.weightKg < 0))
-                  const FormHint(
-                    'Laal stock zero se kam hai: khareed se zyada becha gaya. Shayad koi khareed abhi darj nahi hui.',
+                  FormHint(
+                    tr('Laal stock zero se kam hai: khareed se zyada becha gaya. Shayad koi khareed abhi darj nahi hui.', 'Red stock is below zero: more sold than bought. A purchase may not be entered yet.'),
                     warn: true,
                     margin: EdgeInsets.fromLTRB(16, 12, 16, 0),
                   ),
@@ -170,12 +171,12 @@ class _StockItemScreenState extends State<StockItemScreen> {
     try {
       final reason = await askCancelReason(
         context,
-        title: 'Yeh stock line cancel karni hai?',
+        title: tr('Yeh stock line cancel karni hai?', 'Cancel this stock line?'),
         message: '${stockMoveTitle(m)} · ${kg(m.weightKg.abs())} · ${formatDate(m.date)}',
       );
       if (reason == null) return;
       await repo.cancelStockAdjustment(m.adjustmentId!, reason: reason);
-      if (mounted) showDone(context, 'Stock line cancel ho gayi');
+      if (mounted) showDone(context, tr('Stock line cancel ho gayi', 'Stock line cancelled'));
     } catch (e) {
       if (mounted) showError(context, e);
     }
@@ -206,8 +207,8 @@ class _StockItemScreenState extends State<StockItemScreen> {
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert_rounded),
                 itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Naam badlein')),
-                  PopupMenuItem(value: 'archive', child: Text(row.archived ? 'Wapas laayein' : 'Archive karein')),
+                  PopupMenuItem(value: 'edit', child: Text(tr('Naam badlein', 'Rename'))),
+                  PopupMenuItem(value: 'archive', child: Text(row.archived ? tr('Wapas laayein', 'Restore') : tr('Archive karein', 'Archive'))),
                 ],
                 onSelected: (v) => v == 'edit' ? _open(ItemFormScreen(item: row.item)) : _toggleArchive(row),
               ),
@@ -234,7 +235,7 @@ class _StockItemScreenState extends State<StockItemScreen> {
                           Expanded(child: Text(row.item.displayName, style: Theme.of(context).textTheme.titleLarge)),
                         ]),
                         const SizedBox(height: 20),
-                        Text('Haath mein', style: Theme.of(context).textTheme.labelMedium),
+                        Text(tr('Haath mein', 'In hand'), style: Theme.of(context).textTheme.labelMedium),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
@@ -248,7 +249,7 @@ class _StockItemScreenState extends State<StockItemScreen> {
                               )),
                         ),
                         Text(
-                          [money(row.stockValue), if (row.avgCost != null) 'ausat ${money(row.avgCost!)}/kg'].join(' · '),
+                          [money(row.stockValue), if (row.avgCost != null) '${tr('ausat', 'avg')} ${money(row.avgCost!)}/kg'].join(' · '),
                           style: TextStyle(color: k.muted, fontFeatures: tabular),
                         ),
                         if (!row.archived) ...[
@@ -256,7 +257,7 @@ class _StockItemScreenState extends State<StockItemScreen> {
                           Row(children: [
                             ActionButton(
                               icon: Icons.add_rounded,
-                              label: 'Stock aaya',
+                              label: tr('Stock aaya', 'Stock in'),
                               color: k.ink,
                               onTap: () => _open(StockAdjustmentScreen(item: row.item, incoming: true)),
                             ),
@@ -265,7 +266,7 @@ class _StockItemScreenState extends State<StockItemScreen> {
                               child: OutlinedButton.icon(
                                 onPressed: () => _open(StockAdjustmentScreen(item: row.item, incoming: false)),
                                 icon: const Icon(Icons.remove_rounded, size: 20),
-                                label: const Text('Stock gaya'),
+                                label: Text(tr('Stock gaya', 'Stock out')),
                               ),
                             ),
                           ]),
@@ -275,15 +276,18 @@ class _StockItemScreenState extends State<StockItemScreen> {
                   );
                 }
                 if (i == 1) {
-                  return const FormHint(
-                    'Khareed aur farokht Sauday tab se darj hoti hain. '
-                    'Yahan baqi tabdeeli likhein: shuru ka stock, zaya, namoona, ginti ka farq.',
+                  return FormHint(
+                    tr(
+                        'Khareed aur farokht Sauday tab se darj hoti hain. '
+                            'Yahan baqi tabdeeli likhein: shuru ka stock, zaya, namoona, ginti ka farq.',
+                        'Purchases and sales are entered from the Deals tab. '
+                            'Record other changes here: opening stock, waste, samples, count differences.'),
                     margin: EdgeInsets.fromLTRB(16, 12, 16, 0),
                   );
                 }
                 if (i == 2) return const SectionTitle('Stock register');
                 if (days.rows.isEmpty) {
-                  return const EmptyState(icon: Icons.inventory_2_outlined, message: 'Abhi koi aamad ya nikasi nahi.');
+                  return EmptyState(icon: Icons.inventory_2_outlined, message: tr('Abhi koi aamad ya nikasi nahi.', 'No stock in or out yet.'));
                 }
                 return days.build(i - 3, (m) => _MoveTile(move: m, onTap: () => _onMoveTap(m)));
               },
@@ -330,7 +334,7 @@ class _MoveTile extends StatelessWidget {
         children: [
           Text('${incoming ? '+' : '−'} ${kg(m.weightKg.abs())}',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, fontFeatures: tabular, color: k.text)),
-          Text('Baqi ${kg(m.qtyAfter)}',
+          Text('${tr('Baqi', 'Left')} ${kg(m.qtyAfter)}',
               style: TextStyle(fontSize: 12, color: m.qtyAfter < 0 ? k.dena : k.muted, fontFeatures: tabular)),
         ],
       ),
@@ -360,7 +364,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
   }
 
   Future<void> _save() async {
-    if (_en.text.trim().isEmpty) return showError(context, 'Naam likhein');
+    if (_en.text.trim().isEmpty) return showError(context, tr('Naam likhein', 'Enter a name'));
     setState(() => _saving = true);
     final repo = Repo.of(context);
     try {
@@ -380,7 +384,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
   @override
   Widget build(BuildContext context) {
     return FormPage(
-      title: widget.item == null ? 'Kapre ki nayi qisam' : 'Naam badlein',
+      title: widget.item == null ? tr('Kapre ki nayi qisam', 'New cloth type') : tr('Naam badlein', 'Rename'),
       saving: _saving,
       onSave: _save,
       children: [
@@ -388,12 +392,12 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
           controller: _en,
           autofocus: true,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(labelText: 'Naam', hintText: 'Purana kapra'),
+          decoration: InputDecoration(labelText: tr('Naam', 'Name'), hintText: tr('Purana kapra', 'Used cloth')),
         ),
         TextField(
           controller: _ur,
           textDirection: TextDirection.rtl,
-          decoration: const InputDecoration(labelText: 'Urdu naam (agar ho)', hintText: 'پرانا کپڑا'),
+          decoration: InputDecoration(labelText: tr('Urdu naam (agar ho)', 'Urdu name (optional)'), hintText: 'پرانا کپڑا'),
         ),
       ],
     );
@@ -429,8 +433,8 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   }
 
   Future<void> _save() async {
-    if (_weight == null || _weight! <= 0) return showError(context, 'Wazan likhein');
-    if (widget.incoming && (_cost == null || _cost! < 0)) return showError(context, 'Qeemat fi kg likhein');
+    if (_weight == null || _weight! <= 0) return showError(context, tr('Wazan likhein', 'Enter the weight'));
+    if (widget.incoming && (_cost == null || _cost! < 0)) return showError(context, tr('Qeemat fi kg likhein', 'Enter the cost per kg'));
     setState(() => _saving = true);
     try {
       await Repo.of(context).recordStockAdjustment(
@@ -442,7 +446,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
         reason: _reason.text,
       );
       if (mounted) {
-        showDone(context, '${kg(_weight!)} ${widget.incoming ? 'stock mein jur gaye' : 'stock se nikal gaye'}');
+        showDone(context, '${kg(_weight!)} ${widget.incoming ? tr('stock mein jur gaye', 'added to stock') : tr('stock se nikal gaye', 'taken out of stock')}');
         Navigator.pop(context, true);
       }
     } catch (e) {
@@ -455,11 +459,11 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   @override
   Widget build(BuildContext context) {
     return FormPage(
-      title: '${widget.item.nameEn}: ${widget.incoming ? 'stock aaya' : 'stock gaya'}',
+      title: '${widget.item.nameEn}: ${widget.incoming ? tr('stock aaya', 'stock in') : tr('stock gaya', 'stock out')}',
       saving: _saving,
       onSave: _save,
       children: [
-        const FieldLabel('Kyun?'),
+        FieldLabel(tr('Kyun?', 'Why?')),
         Wrap(
           spacing: 8,
           runSpacing: 4,
@@ -468,20 +472,20 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
               ChoiceChip(label: Text(k.label), selected: _kind == k, onSelected: (_) => setState(() => _kind = k)),
           ],
         ),
-        NumberField(label: 'Wazan', suffix: 'kg', autofocus: true, onChanged: (v) => _weight = v),
+        NumberField(label: tr('Wazan', 'Weight'), suffix: 'kg', autofocus: true, onChanged: (v) => _weight = v),
         if (widget.incoming)
           NumberField(
-            label: 'Qeemat fi kg',
+            label: tr('Qeemat fi kg', 'Cost per kg'),
             suffix: 'Rs/kg',
-            helper: 'Yeh maal aap ko kitne ka para, taake munafa sahi aaye',
+            helper: tr('Yeh maal aap ko kitne ka para, taake munafa sahi aaye', 'What these goods cost you, so profit comes out right'),
             onChanged: (v) => _cost = v,
           )
         else
-          const FormHint('Yeh maal ausat laagat par nuqsan mein likha jayega.'),
+          FormHint(tr('Yeh maal ausat laagat par nuqsan mein likha jayega.', 'These goods are written off as a loss at average cost.')),
         DateField(value: _date, onChanged: (d) => setState(() => _date = d)),
         TextField(
           controller: _reason,
-          decoration: const InputDecoration(labelText: 'Tafseel (agar ho)'),
+          decoration: InputDecoration(labelText: tr('Tafseel (agar ho)', 'Details (optional)')),
         ),
       ],
     );

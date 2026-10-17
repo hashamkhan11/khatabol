@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:khatabol/data/models.dart';
 import 'package:khatabol/l10n/khata_text.dart';
+import 'package:khatabol/l10n/lang.dart';
 
 KhataLine line(Map<String, dynamic> facts) => KhataLine.fromJson({
       'entry_id': 'e1',
@@ -49,6 +50,32 @@ void main() {
     test('brought-forward line', () {
       final l = KhataLine.fromJson({'entry_id': null, 'entry_date': '2026-10-01', 'amount': -10000, 'balance': -10000});
       expect(lineTitle(l), 'Pichla baqaya');
+    });
+  });
+
+  group('in English', () {
+    setUp(() => appLang.value = AppLang.english);
+    tearDown(() => appLang.value = AppLang.romanUrdu);
+
+    test('deal lines', () {
+      final l = line({'kind': 'sale', 'deal_id': 'd1', 'item_name': 'Used cloth', 'weight_kg': 200, 'rate': 150});
+      expect(lineTitle(l), 'Sale · Used cloth · 200 kg @ 150');
+      final c = line({'kind': 'commission', 'deal_id': 'd1', 'counterparty_name': 'Akram'});
+      expect(lineTitle(c), 'Commission · deal with Akram');
+    });
+
+    test('payments, costs and cancellations', () {
+      expect(lineTitle(line({'kind': 'payment_in'})), 'Money received');
+      expect(lineTitle(line({'kind': 'payment_out', 'deal_id': 'd1'})), 'Paid on deal');
+      expect(lineTitle(line({'kind': 'expense', 'expense_category': 'Rent'})), 'Expense: Rent');
+      final r = line({'kind': 'reversal', 'reverses_id': 'e0', 'reversed_kind': 'payment_in'});
+      expect(lineTitle(r), 'Cancelled: Money received');
+    });
+
+    test('enum labels follow the language', () {
+      expect(DealKind.purchase.label, 'Purchase');
+      expect(PartyType.buyer.label, 'Buyer');
+      expect(StockAdjustmentKind.wastage.label, 'Damaged / wasted');
     });
   });
 

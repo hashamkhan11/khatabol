@@ -9,6 +9,7 @@ import '../util/format.dart';
 import 'home_screen.dart';
 import 'party_screen.dart';
 import 'profit_screen.dart';
+import '../l10n/lang.dart';
 
 /// The Khulasa tab, the screen the owner opens most: what is owed both ways,
 /// this month's profit, stock in hand, the biggest balances and the latest
@@ -60,7 +61,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             Text(DateFormat('EEEE, d MMMM').format(DateTime.now()),
                 style: TextStyle(fontSize: 13, color: k.muted, fontWeight: FontWeight.w600)),
-            const Text('Khulasa'),
+            Text(tr('Khulasa', 'Summary')),
           ],
         ),
         actions: const [AccountMenuButton()],
@@ -95,16 +96,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         _Tile(
                           icon: profit < 0 ? Icons.trending_down_rounded : Icons.trending_up_rounded,
                           iconColor: k.forBalance(profit),
-                          label: profit < 0 ? 'Is mahine ka nuqsan' : 'Is mahine ka munafa',
+                          label: profit < 0 ? tr('Is mahine ka nuqsan', 'Loss this month') : tr('Is mahine ka munafa', 'Profit this month'),
                           value: Amount(profit, color: k.forBalance(profit), size: 19, weight: FontWeight.w800),
-                          note: 'Tafseel',
+                          note: tr('Tafseel', 'Details'),
                           onTap: () => _open(const ProfitScreen()),
                         ),
                         const SizedBox(width: 12),
                         _Tile(
                           icon: Icons.inventory_2_outlined,
                           iconColor: Theme.of(context).colorScheme.primary,
-                          label: 'Stock haath mein',
+                          label: tr('Stock haath mein', 'Stock in hand'),
                           value: Text(kg(stockKg),
                               maxLines: 1,
                               style: TextStyle(
@@ -117,24 +118,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 if (debtors.isNotEmpty)
                   Section(
-                    title: 'Sab se zyada lena',
+                    title: tr('Sab se zyada lena', 'Most to receive'),
                     children: [
                       for (final p in debtors.take(5)) PartyTile(party: p, onTap: () => _open(PartyScreen(partyId: p.id))),
                     ],
                   ),
                 if (creditors.isNotEmpty)
                   Section(
-                    title: 'Sab se zyada dena',
+                    title: tr('Sab se zyada dena', 'Most to pay'),
                     children: [
                       for (final p in creditors.take(5))
                         PartyTile(party: p, onTap: () => _open(PartyScreen(partyId: p.id))),
                     ],
                   ),
                 if (s.recent.isEmpty)
-                  const EmptyState(icon: Icons.menu_book_outlined, message: 'Abhi koi entry nahi.')
+                  EmptyState(icon: Icons.menu_book_outlined, message: tr('Abhi koi entry nahi.', 'No entries yet.'))
                 else
                   Section(
-                    title: 'Taaza hisaab',
+                    title: tr('Taaza hisaab', 'Latest entries'),
                     children: [
                       for (final l in s.recent)
                         ListTile(
@@ -186,7 +187,7 @@ class _Hero extends StatelessWidget {
               fit: BoxFit.scaleDown,
               child: Amount(amount, color: k.onInk, size: 26, weight: FontWeight.w800),
             ),
-            Text('$parties ${parties == 1 ? 'party' : 'parties'}', style: TextStyle(color: onInkMuted, fontSize: 12.5)),
+            Text('$parties ${parties == 1 ? tr('party', 'party') : tr('parties', 'parties')}', style: TextStyle(color: onInkMuted, fontSize: 12.5)),
           ],
         );
 
@@ -200,9 +201,9 @@ class _Hero extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: side('Kul lena', toReceive, debtors, k.lenaOnInk, CrossAxisAlignment.start)),
+              Expanded(child: side(tr('Kul lena', 'To receive'), toReceive, debtors, k.lenaOnInk, CrossAxisAlignment.start)),
               const SizedBox(width: 16),
-              Expanded(child: side('Kul dena', toPay, creditors, k.denaOnInk, CrossAxisAlignment.end)),
+              Expanded(child: side(tr('Kul dena', 'To pay'), toPay, creditors, k.denaOnInk, CrossAxisAlignment.end)),
             ],
           ),
           const SizedBox(height: 16),
@@ -224,14 +225,14 @@ class _Hero extends StatelessWidget {
             TextSpan(
               style: TextStyle(color: onInkMuted, fontSize: 14.5, height: 1.3),
               children: net == 0
-                  ? const [TextSpan(text: 'Kul mila kar hisaab barabar hai')]
+                  ? [TextSpan(text: tr('Kul mila kar hisaab barabar hai', 'Overall, everything is settled'))]
                   : [
-                      const TextSpan(text: 'Kul mila kar '),
+                      TextSpan(text: tr('Kul mila kar ', 'Overall, ')),
                       TextSpan(
                         text: money(net),
                         style: TextStyle(color: k.onInk, fontWeight: FontWeight.w800, fontFeatures: tabular),
                       ),
-                      TextSpan(text: net > 0 ? ' lene hain' : ' dene hain'),
+                      TextSpan(text: net > 0 ? tr(' lene hain', ' to receive') : tr(' dene hain', ' to pay')),
                     ],
             ),
           ),

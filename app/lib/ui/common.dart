@@ -5,6 +5,7 @@ import '../data/ledger_repository.dart';
 import '../data/models.dart';
 import '../util/format.dart';
 import 'theme.dart';
+import '../l10n/lang.dart';
 
 /// Gives every screen the same repository.
 class Repo extends InheritedWidget {
@@ -24,37 +25,41 @@ class Repo extends InheritedWidget {
 /// Database functions raise plain-English messages; the common ones are shown
 /// in Roman Urdu, the rest as they are.
 String errorText(Object error) {
-  if (error is PostgrestException) return _dbMessages[error.message] ?? _capitalise(error.message);
+  if (error is PostgrestException) {
+    final m = _dbMessages[error.message];
+    return m == null ? _capitalise(error.message) : tr(m.$1, m.$2);
+  }
   if (error is AuthException) return error.message;
   final s = error.toString();
   if (s.contains('SocketException') || s.contains('ClientException')) {
-    return 'Internet nahi chal raha. Connection check kar ke dobara koshish karein.';
+    return tr('Internet nahi chal raha. Connection check kar ke dobara koshish karein.',
+        'No internet. Check the connection and try again.');
   }
   return s;
 }
 
-const _dbMessages = {
-  'party not found': 'Party nahi mili',
-  'cloth type not found': 'Kapre ki qisam nahi mili',
-  'deal not found': 'Sauda nahi mila',
-  'entry not found': 'Line nahi mili',
-  'seller and buyer must be different parties': 'Bechne wala aur khareedne wala alag hon',
-  'record payments for commission deals separately': 'Commission sauday ki payment alag se darj karein',
-  'payment amount must be positive': 'Raqam zero se zyada honi chahiye',
-  'paid_now cannot be negative': 'Abhi di gayi raqam manfi nahi ho sakti',
-  'weight must be positive': 'Wazan zero se zyada hona chahiye',
-  'stock coming in needs a cost per kg': 'Aane wale stock ki qeemat fi kg likhein',
-  'deal is already cancelled': 'Yeh sauda pehle hi cancel ho chuka hai',
-  'entry is already cancelled': 'Yeh line pehle hi cancel ho chuki hai',
-  'expense not found or already cancelled': 'Kharcha nahi mila ya pehle hi cancel hai',
-  'this line belongs to a deal or expense; cancel that instead': 'Yeh line sauday ya kharchay ki hai; usay cancel karein',
-  'a cancellation cannot be cancelled; record the entry again instead': 'Cancel ko cancel nahi kar sakte; line dobara darj karein',
-  'an adjustment needs a note explaining it': 'Durusti ki wajah likhein',
-  'adjustment amount cannot be zero': 'Raqam zero nahi ho sakti',
-  'Not signed in': 'Pehle sign in karein',
-  'settle the khata before archiving this party': 'Pehle hisaab barabar karein, phir party archive hogi',
-  'stock must be zero before archiving this cloth type': 'Pehle stock zero karein, phir archive hoga',
-  'stock adjustment not found or already cancelled': 'Stock ki line nahi mili ya pehle hi cancel hai',
+const _dbMessages = <String, (String, String)>{
+  'party not found': ('Party nahi mili', 'Party not found'),
+  'cloth type not found': ('Kapre ki qisam nahi mili', 'Cloth type not found'),
+  'deal not found': ('Sauda nahi mila', 'Deal not found'),
+  'entry not found': ('Line nahi mili', 'Line not found'),
+  'seller and buyer must be different parties': ('Bechne wala aur khareedne wala alag hon', 'Seller and buyer must be different parties'),
+  'record payments for commission deals separately': ('Commission sauday ki payment alag se darj karein', 'Record payments for commission deals separately'),
+  'payment amount must be positive': ('Raqam zero se zyada honi chahiye', 'Amount must be more than zero'),
+  'paid_now cannot be negative': ('Abhi di gayi raqam manfi nahi ho sakti', 'Amount paid now cannot be negative'),
+  'weight must be positive': ('Wazan zero se zyada hona chahiye', 'Weight must be more than zero'),
+  'stock coming in needs a cost per kg': ('Aane wale stock ki qeemat fi kg likhein', 'Enter the cost per kg for incoming stock'),
+  'deal is already cancelled': ('Yeh sauda pehle hi cancel ho chuka hai', 'This deal is already cancelled'),
+  'entry is already cancelled': ('Yeh line pehle hi cancel ho chuki hai', 'This line is already cancelled'),
+  'expense not found or already cancelled': ('Kharcha nahi mila ya pehle hi cancel hai', 'Expense not found or already cancelled'),
+  'this line belongs to a deal or expense; cancel that instead': ('Yeh line sauday ya kharchay ki hai; usay cancel karein', 'This line belongs to a deal or expense; cancel that instead'),
+  'a cancellation cannot be cancelled; record the entry again instead': ('Cancel ko cancel nahi kar sakte; line dobara darj karein', 'A cancellation cannot be cancelled; record the line again instead'),
+  'an adjustment needs a note explaining it': ('Durusti ki wajah likhein', 'Write the reason for the correction'),
+  'adjustment amount cannot be zero': ('Raqam zero nahi ho sakti', 'Amount cannot be zero'),
+  'Not signed in': ('Pehle sign in karein', 'Please sign in first'),
+  'settle the khata before archiving this party': ('Pehle hisaab barabar karein, phir party archive hogi', 'Settle the balance before archiving this party'),
+  'stock must be zero before archiving this cloth type': ('Pehle stock zero karein, phir archive hoga', 'Stock must be zero before archiving this cloth type'),
+  'stock adjustment not found or already cancelled': ('Stock ki line nahi mili ya pehle hi cancel hai', 'Stock line not found or already cancelled'),
 };
 
 String _capitalise(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
@@ -77,8 +82,8 @@ String dayLabel(DateTime d) {
   final today = DateTime(now.year, now.month, now.day);
   final day = DateTime(d.year, d.month, d.day);
   final diff = today.difference(day).inDays;
-  if (diff == 0) return 'Aaj';
-  if (diff == 1) return 'Kal';
+  if (diff == 0) return tr('Aaj', 'Today');
+  if (diff == 1) return tr('Kal', 'Yesterday');
   return formatDate(day);
 }
 
@@ -222,11 +227,11 @@ class _OfflineBar extends StatelessWidget {
           children: [
             const Icon(Icons.cloud_off_rounded, color: Colors.white70, size: 20),
             const SizedBox(width: 12),
-            const Expanded(
-              child: Text('Internet nahi. Purana hisaab dikh raha hai.',
+            Expanded(
+              child: Text(tr('Internet nahi. Purana hisaab dikh raha hai.', 'No internet. Showing saved data.'),
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
             ),
-            TextButton(onPressed: onRetry, child: const Text('Dobara', style: TextStyle(color: Colors.white))),
+            TextButton(onPressed: onRetry, child: Text(tr('Dobara', 'Retry'), style: TextStyle(color: Colors.white))),
           ],
         ),
       ),
@@ -330,7 +335,7 @@ class ErrorRetry extends StatelessWidget {
             const SizedBox(height: 16),
             Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge),
             const SizedBox(height: 20),
-            SizedBox(width: 200, child: FilledButton.tonal(onPressed: onRetry, child: const Text('Dobara koshish'))),
+            SizedBox(width: 200, child: FilledButton.tonal(onPressed: onRetry, child: Text(tr('Dobara koshish', 'Try again')))),
           ],
         ),
       ),
@@ -456,9 +461,9 @@ class TotalsRow extends StatelessWidget {
       decoration: BoxDecoration(color: k.surface, borderRadius: BorderRadius.circular(18)),
       child: IntrinsicHeight(
         child: Row(children: [
-          half('Kul lena', toReceive, k.lena),
+          half(tr('Kul lena', 'To receive'), toReceive, k.lena),
           VerticalDivider(width: 1, indent: 14, endIndent: 14, color: k.line),
-          half('Kul dena', toPay, k.dena),
+          half(tr('Kul dena', 'To pay'), toPay, k.dena),
         ]),
       ),
     );
@@ -676,7 +681,7 @@ class FormPage extends StatelessWidget {
     required this.children,
     required this.onSave,
     required this.saving,
-    this.saveLabel = 'Save karein',
+    this.saveLabel,
     this.actions,
   });
 
@@ -684,7 +689,7 @@ class FormPage extends StatelessWidget {
   final List<Widget> children;
   final VoidCallback onSave;
   final bool saving;
-  final String saveLabel;
+  final String? saveLabel;
   final List<Widget>? actions;
 
   @override
@@ -710,7 +715,7 @@ class FormPage extends StatelessWidget {
                 onPressed: saving ? null : onSave,
                 child: saving
                     ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.4))
-                    : Text(saveLabel),
+                    : Text(saveLabel ?? tr('Save karein', 'Save')),
               ),
             ),
           ],
@@ -732,7 +737,7 @@ Future<bool> confirm(BuildContext context, {required String title, String? messa
       title: Text(title),
       content: message == null ? null : Text(message, style: const TextStyle(height: 1.4)),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Wapas')),
+        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Wapas', 'Back'))),
         FilledButton(
           style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
           onPressed: () => Navigator.pop(context, true),
@@ -759,15 +764,15 @@ Future<String?> askCancelReason(BuildContext context, {required String title, re
         children: [
           Text(message, style: const TextStyle(height: 1.4)),
           const SizedBox(height: 16),
-          TextField(controller: controller, decoration: const InputDecoration(labelText: 'Wajah (agar ho)')),
+          TextField(controller: controller, decoration: InputDecoration(labelText: tr('Wajah (agar ho)', 'Reason (optional)'))),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Wapas')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Wapas', 'Back'))),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: k.dena, foregroundColor: Colors.white, minimumSize: const Size(0, 44)),
           onPressed: () => Navigator.pop(context, controller.text),
-          child: const Text('Cancel karein'),
+          child: Text(tr('Cancel karein', 'Cancel it')),
         ),
       ],
     ),
@@ -780,11 +785,11 @@ Future<String?> askCancelReason(BuildContext context, {required String title, re
 
 /// A form field showing a date that opens a date picker.
 class DateField extends StatelessWidget {
-  const DateField({super.key, required this.value, required this.onChanged, this.label = 'Tareekh'});
+  const DateField({super.key, required this.value, required this.onChanged, this.label});
 
   final DateTime value;
   final ValueChanged<DateTime> onChanged;
-  final String label;
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -801,7 +806,7 @@ class DateField extends StatelessWidget {
         if (picked != null) onChanged(picked);
       },
       child: InputDecorator(
-        decoration: InputDecoration(labelText: label, suffixIcon: const Icon(Icons.calendar_month_rounded, size: 20)),
+        decoration: InputDecoration(labelText: label ?? tr('Tareekh', 'Date'), suffixIcon: const Icon(Icons.calendar_month_rounded, size: 20)),
         child: Text(day == formatDate(value) ? day : '$day · ${formatDate(value)}'),
       ),
     );
@@ -851,7 +856,7 @@ class PartyField extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.allowNone = false,
-    this.noneLabel = 'Koi nahi',
+    this.noneLabel,
   });
 
   final String label;
@@ -859,24 +864,25 @@ class PartyField extends StatelessWidget {
   final String? value;
   final ValueChanged<String?> onChanged;
   final bool allowNone;
-  final String noneLabel;
+  final String? noneLabel;
 
   @override
   Widget build(BuildContext context) {
     final selected = parties.where((p) => p.id == value).firstOrNull;
+    final none = noneLabel ?? tr('Koi nahi', 'None');
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () async {
         final picked = await showModalBottomSheet<_Pick>(
           context: context,
           isScrollControlled: true,
-          builder: (_) => _PartyPicker(parties: parties, allowNone: allowNone, noneLabel: noneLabel),
+          builder: (_) => _PartyPicker(parties: parties, allowNone: allowNone, noneLabel: none),
         );
         if (picked != null) onChanged(picked.id);
       },
       child: InputDecorator(
         decoration: InputDecoration(labelText: label, suffixIcon: const Icon(Icons.expand_more_rounded)),
-        child: Text(selected?.name ?? (allowNone ? noneLabel : 'Chunein…'),
+        child: Text(selected?.name ?? (allowNone ? none : tr('Chunein…', 'Choose…')),
             style: selected == null ? TextStyle(color: Theme.of(context).hintColor) : null),
       ),
     );
@@ -915,7 +921,7 @@ class _PartyPickerState extends State<_PartyPicker> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: TextField(
                 autofocus: true,
-                decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), hintText: 'Party talaash karein'),
+                decoration: InputDecoration(prefixIcon: Icon(Icons.search_rounded), hintText: tr('Party talaash karein', 'Search parties')),
                 onChanged: (s) => setState(() => _search = s),
               ),
             ),
@@ -936,9 +942,9 @@ class _PartyPickerState extends State<_PartyPicker> {
                       onTap: () => Navigator.pop(context, _Pick(p.id)),
                     ),
                   if (list.isEmpty)
-                    const EmptyState(
+                    EmptyState(
                       icon: Icons.person_search_rounded,
-                      message: 'Koi party nahi mili. Pehle Khata tab se party banayein.',
+                      message: tr('Koi party nahi mili. Pehle Khata tab se party banayein.', 'No party found. Add one from the Parties tab first.'),
                     ),
                 ],
               ),
@@ -952,12 +958,12 @@ class _PartyPickerState extends State<_PartyPicker> {
 
 /// Picks one cloth type.
 class ItemField extends StatelessWidget {
-  const ItemField({super.key, required this.items, required this.value, required this.onChanged, this.label = 'Kapre ki qisam'});
+  const ItemField({super.key, required this.items, required this.value, required this.onChanged, this.label});
 
   final List<Item> items;
   final String? value;
   final ValueChanged<String?> onChanged;
-  final String label;
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -967,8 +973,8 @@ class ItemField extends StatelessWidget {
       icon: const Icon(Icons.expand_more_rounded),
       isExpanded: true,
       decoration: InputDecoration(
-        labelText: label,
-        helperText: items.isEmpty ? 'Pehle Stock tab mein kapre ki qisam banayein' : null,
+        labelText: label ?? tr('Kapre ki qisam', 'Cloth type'),
+        helperText: items.isEmpty ? tr('Pehle Stock tab mein kapre ki qisam banayein', 'Add a cloth type in the Stock tab first') : null,
       ),
       items: [for (final i in items) DropdownMenuItem(value: i.id, child: Text(i.displayName, overflow: TextOverflow.ellipsis))],
       onChanged: onChanged,
@@ -990,7 +996,7 @@ class PartyTile extends StatelessWidget {
 
   static String _lastEntry(DateTime d) {
     final day = dayLabel(d);
-    return day == formatDate(d) ? 'akhri ${formatShortDate(d)}' : day.toLowerCase();
+    return day == formatDate(d) ? tr('akhri ${formatShortDate(d)}', 'last ${formatShortDate(d)}') : day.toLowerCase();
   }
 
   @override
@@ -1009,7 +1015,7 @@ class PartyTile extends StatelessWidget {
           ].join(' · '),
           maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: p.balance == 0
-          ? Text('Barabar', style: TextStyle(color: k.muted, fontWeight: FontWeight.w600))
+          ? Text(tr('Barabar', 'Settled'), style: TextStyle(color: k.muted, fontWeight: FontWeight.w600))
           : Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,

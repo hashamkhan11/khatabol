@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../ui/common.dart';
+import '../l10n/lang.dart';
 
 /// Adds a new party (with an optional opening balance) or edits one.
 class PartyFormScreen extends StatefulWidget {
@@ -38,9 +39,9 @@ class _PartyFormScreenState extends State<PartyFormScreen> {
   }
 
   Future<void> _save() async {
-    if (_name.text.trim().isEmpty) return showError(context, 'Naam likhein');
+    if (_name.text.trim().isEmpty) return showError(context, tr('Naam likhein', 'Enter a name'));
     if (_opening != _Opening.none && (_openingAmount == null || _openingAmount! <= 0)) {
-      return showError(context, 'Purane hisaab ki raqam likhein');
+      return showError(context, tr('Purane hisaab ki raqam likhein', 'Enter the opening balance amount'));
     }
     setState(() => _saving = true);
     final repo = Repo.of(context);
@@ -80,7 +81,7 @@ class _PartyFormScreenState extends State<PartyFormScreen> {
   @override
   Widget build(BuildContext context) {
     return FormPage(
-      title: _editing ? 'Party badlein' : 'Nayi party',
+      title: _editing ? tr('Party badlein', 'Edit party') : tr('Nayi party', 'New party'),
       saving: _saving,
       onSave: _save,
       children: [
@@ -88,51 +89,51 @@ class _PartyFormScreenState extends State<PartyFormScreen> {
           controller: _name,
           autofocus: !_editing,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(labelText: 'Naam'),
+          decoration: InputDecoration(labelText: tr('Naam', 'Name')),
         ),
         DropdownButtonFormField<PartyType>(
           initialValue: _type,
-          decoration: const InputDecoration(labelText: 'Qisam'),
+          decoration: InputDecoration(labelText: tr('Qisam', 'Type')),
           items: [for (final t in PartyType.values) DropdownMenuItem(value: t, child: Text(t.label))],
           onChanged: (t) => setState(() => _type = t!),
         ),
         TextField(
           controller: _phone,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(labelText: 'Phone (agar ho)'),
+          decoration: InputDecoration(labelText: tr('Phone (agar ho)', 'Phone (optional)')),
         ),
         TextField(
           controller: _whatsapp,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: 'WhatsApp (agar ho)',
-            helperText: 'Is number par khata bheja jayega',
+          decoration: InputDecoration(
+            labelText: tr('WhatsApp (agar ho)', 'WhatsApp (optional)'),
+            helperText: tr('Is number par khata bheja jayega', 'The ledger is sent to this number'),
           ),
         ),
         TextField(
           controller: _city,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(labelText: 'Shehar (agar ho)'),
+          decoration: InputDecoration(labelText: tr('Shehar (agar ho)', 'City (optional)')),
         ),
         TextField(
           controller: _notes,
           maxLines: 2,
-          decoration: const InputDecoration(labelText: 'Note (agar ho)'),
+          decoration: InputDecoration(labelText: tr('Note (agar ho)', 'Note (optional)')),
         ),
         if (!_editing) ...[
-          const FieldLabel('Purana hisaab (is app se pehle ka khata)'),
+          FieldLabel(tr('Purana hisaab (is app se pehle ka khata)', 'Opening balance (from before this app)')),
           SegmentedButton<_Opening>(
-            segments: const [
-              ButtonSegment(value: _Opening.none, label: Text('Koi nahi')),
-              ButtonSegment(value: _Opening.owesYou, label: Text('Lena hai')),
-              ButtonSegment(value: _Opening.youOwe, label: Text('Dena hai')),
+            segments: [
+              ButtonSegment(value: _Opening.none, label: Text(tr('Koi nahi', 'None'))),
+              ButtonSegment(value: _Opening.owesYou, label: Text(tr('Lena hai', 'To receive'))),
+              ButtonSegment(value: _Opening.youOwe, label: Text(tr('Dena hai', 'To pay'))),
             ],
             selected: {_opening},
             onSelectionChanged: (s) => setState(() => _opening = s.first),
           ),
           if (_opening != _Opening.none) ...[
-            NumberField(label: 'Raqam', suffix: 'Rs', onChanged: (v) => _openingAmount = v),
-            DateField(label: 'Kis tareekh tak', value: _openingDate, onChanged: (d) => setState(() => _openingDate = d)),
+            NumberField(label: tr('Raqam', 'Amount'), suffix: 'Rs', onChanged: (v) => _openingAmount = v),
+            DateField(label: tr('Kis tareekh tak', 'As of date'), value: _openingDate, onChanged: (d) => setState(() => _openingDate = d)),
           ],
         ],
       ],

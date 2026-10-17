@@ -1,51 +1,56 @@
+import '../l10n/lang.dart';
 import '../util/format.dart';
 
-// Labels are Roman Urdu, the way the trader speaks. The enum names match the
+// Labels follow the chosen language (Roman Urdu by default). The enum names match the
 // database values, which stay English so the WhatsApp bot and the app share them.
 
 enum PartyType {
-  supplier('Supplier'),
-  factory('Factory'),
-  buyer('Gahak'),
-  transporter('Transporter'),
-  other('Deegar');
+  supplier('Supplier', 'Supplier'),
+  factory('Factory', 'Factory'),
+  buyer('Gahak', 'Buyer'),
+  transporter('Transporter', 'Transporter'),
+  other('Deegar', 'Other');
 
-  const PartyType(this.label);
-  final String label;
+  const PartyType(this._ru, this._en);
+  final String _ru, _en;
+  String get label => tr(_ru, _en);
 
   static PartyType parse(String s) => PartyType.values.byName(s);
 }
 
 enum DealKind {
-  purchase('Khareed'),
-  sale('Farokht'),
-  commission('Commission');
+  purchase('Khareed', 'Purchase'),
+  sale('Farokht', 'Sale'),
+  commission('Commission', 'Commission');
 
-  const DealKind(this.label);
-  final String label;
+  const DealKind(this._ru, this._en);
+  final String _ru, _en;
+  String get label => tr(_ru, _en);
 
   static DealKind parse(String s) => DealKind.values.byName(s);
 }
 
 enum PaymentMethod {
-  cash('Cash'),
-  bank('Bank'),
-  other('Deegar');
+  cash('Cash', 'Cash'),
+  bank('Bank', 'Bank'),
+  other('Deegar', 'Other');
 
-  const PaymentMethod(this.label);
-  final String label;
+  const PaymentMethod(this._ru, this._en);
+  final String _ru, _en;
+  String get label => tr(_ru, _en);
 
   static PaymentMethod? parse(String? s) => s == null ? null : PaymentMethod.values.byName(s);
 }
 
 enum CommissionMode {
-  perKg('per_kg', 'Fi kg'),
-  percent('percent', 'Feesad'),
-  fixed('fixed', 'Pakki raqam');
+  perKg('per_kg', 'Fi kg', 'Per kg'),
+  percent('percent', 'Feesad', 'Percent'),
+  fixed('fixed', 'Pakki raqam', 'Fixed amount');
 
-  const CommissionMode(this.db, this.label);
+  const CommissionMode(this.db, this._ru, this._en);
   final String db;
-  final String label;
+  final String _ru, _en;
+  String get label => tr(_ru, _en);
 
   static CommissionMode parse(String s) => CommissionMode.values.firstWhere((m) => m.db == s);
 }
@@ -137,17 +142,18 @@ class Item {
 
 /// Why stock changed outside a deal. The first three bring stock in.
 enum StockAdjustmentKind {
-  opening('Shuru ka stock', true),
-  found('Ginti mein zyada nikla', true),
-  otherIn('Deegar (aamad)', true),
-  wastage('Kharab / zaya', false),
-  shortage('Ginti mein kam nikla', false),
-  ownUse('Apna istemal', false),
-  sample('Namoona', false),
-  otherOut('Deegar (nikasi)', false);
+  opening('Shuru ka stock', 'Opening stock', true),
+  found('Ginti mein zyada nikla', 'Found in count', true),
+  otherIn('Deegar (aamad)', 'Other (in)', true),
+  wastage('Kharab / zaya', 'Damaged / wasted', false),
+  shortage('Ginti mein kam nikla', 'Short in count', false),
+  ownUse('Apna istemal', 'Own use', false),
+  sample('Namoona', 'Sample', false),
+  otherOut('Deegar (nikasi)', 'Other (out)', false);
 
-  const StockAdjustmentKind(this.label, this.isIn);
-  final String label;
+  const StockAdjustmentKind(this._ru, this._en, this.isIn);
+  final String _ru, _en;
+  String get label => tr(_ru, _en);
 
   /// True when this kind adds stock.
   final bool isIn;

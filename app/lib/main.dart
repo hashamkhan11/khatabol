@@ -7,9 +7,11 @@ import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'ui/common.dart';
 import 'ui/theme.dart';
+import 'l10n/lang.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await loadLang();
   await Supabase.initialize(url: Config.supabaseUrl, publishableKey: Config.supabaseKey);
   runApp(KhataBolApp(client: Supabase.instance.client));
 }
@@ -23,12 +25,18 @@ class KhataBolApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return Repo(
       repository: LedgerRepository(client),
-      child: MaterialApp(
-        title: 'KhataBol',
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(Brightness.light),
-        darkTheme: buildTheme(Brightness.dark),
-        home: _AuthGate(auth: client.auth),
+      child: ValueListenableBuilder<AppLang>(
+        valueListenable: appLang,
+        builder: (context, lang, _) => MaterialApp(
+          title: 'KhataBol',
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(Brightness.light),
+          darkTheme: buildTheme(Brightness.dark),
+          // A new key rebuilds every screen, so each one picks up the new wording.
+          // Data comes from the repository cache, so nothing reloads.
+          builder: (context, child) => KeyedSubtree(key: ValueKey(lang), child: child!),
+          home: _AuthGate(auth: client.auth),
+        ),
       ),
     );
   }

@@ -29,6 +29,13 @@ lib/
 test/                      unit tests
 ```
 
+## Language
+
+The app speaks Roman Urdu by default. The account menu (the round avatar at the
+top right) switches between **Roman Urdu** and **English**; the change applies at
+once, without reloading data, and is remembered on the phone. Ledger lines are
+worded on the phone from stored facts, so old entries switch language too.
+
 ## Design and speed
 
 - **One accent colour.** Indigo is the brand; green and red appear only where

@@ -8,6 +8,7 @@ import '../util/format.dart';
 import 'deal_screen.dart';
 import 'party_form_screen.dart';
 import 'payment_screen.dart';
+import '../l10n/lang.dart';
 
 /// One party's khata: balance, payment buttons and the running statement.
 class PartyScreen extends StatefulWidget {
@@ -45,20 +46,20 @@ class _PartyScreenState extends State<PartyScreen> {
     if (line.isBroughtForward) return;
     if (line.dealId != null) return _open(DealScreen(dealId: line.dealId!));
     if (line.expenseId != null) {
-      return showDone(context, 'Yeh line kharchay ki hai. Usay Kharchay tab se cancel karein.');
+      return showDone(context, tr('Yeh line kharchay ki hai. Usay Kharchay tab se cancel karein.', 'This line is an expense. Cancel it from the Expenses tab.'));
     }
     if (line.cancelled) return;
     final repo = Repo.of(context);
     try {
       final reason = await askCancelReason(
         context,
-        title: 'Yeh line cancel karni hai?',
+        title: tr('Yeh line cancel karni hai?', 'Cancel this line?'),
         message: '${lineTitle(line)}\n${money(line.amount)} · ${formatDate(line.date)}\n\n'
-            'Ek cancel ki line jurr jayegi; kuch delete nahi hota.',
+            '${tr('Ek cancel ki line jurr jayegi; kuch delete nahi hota.', 'A cancelling line will be added; nothing is deleted.')}',
       );
       if (reason == null) return;
       await repo.reverseEntry(line.entryId!, reason: reason);
-      if (mounted) showDone(context, 'Line cancel ho gayi');
+      if (mounted) showDone(context, tr('Line cancel ho gayi', 'Line cancelled'));
     } catch (e) {
       if (mounted) showError(context, e);
     }
@@ -68,9 +69,9 @@ class _PartyScreenState extends State<PartyScreen> {
     final archive = !p.archived;
     final ok = await confirm(
       context,
-      title: archive ? '${p.name} ko archive karna hai?' : '${p.name} ko wapas laana hai?',
-      message: archive ? 'Khata mehfooz rahega, lekin nayi entry nahi ho sakegi.' : null,
-      action: archive ? 'Archive' : 'Wapas laayein',
+      title: archive ? tr('${p.name} ko archive karna hai?', 'Archive ${p.name}?') : tr('${p.name} ko wapas laana hai?', 'Restore ${p.name}?'),
+      message: archive ? tr('Khata mehfooz rahega, lekin nayi entry nahi ho sakegi.', 'The ledger is kept, but no new entries can be made.') : null,
+      action: archive ? 'Archive' : tr('Wapas laayein', 'Restore'),
     );
     if (!ok || !mounted) return;
     try {
@@ -95,11 +96,11 @@ class _PartyScreenState extends State<PartyScreen> {
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert_rounded),
                 itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Tafseel badlein')),
+                  PopupMenuItem(value: 'edit', child: Text(tr('Tafseel badlein', 'Edit details'))),
                   CheckedPopupMenuItem(
-                      value: 'cancelled', checked: _includeCancelled, child: const Text('Cancel shuda lines')),
-                  const PopupMenuItem(value: 'adjust', child: Text('Durusti')),
-                  PopupMenuItem(value: 'archive', child: Text(p.archived ? 'Party wapas laayein' : 'Party archive karein')),
+                      value: 'cancelled', checked: _includeCancelled, child: Text(tr('Cancel shuda lines', 'Cancelled lines'))),
+                  PopupMenuItem(value: 'adjust', child: Text(tr('Durusti', 'Correction'))),
+                  PopupMenuItem(value: 'archive', child: Text(p.archived ? tr('Party wapas laayein', 'Restore party') : tr('Party archive karein', 'Archive party'))),
                 ],
                 onSelected: (v) {
                   switch (v) {
@@ -131,11 +132,11 @@ class _PartyScreenState extends State<PartyScreen> {
                   );
                 }
                 if (i == 1) {
-                  return SectionTitle('Khata', trailing: Text('${data.lines.length} lines  ',
+                  return SectionTitle(tr('Khata', 'Ledger'), trailing: Text('${data.lines.length} ${tr('lines', 'lines')}  ',
                       style: Theme.of(context).textTheme.labelMedium));
                 }
                 if (days.rows.isEmpty) {
-                  return const EmptyState(icon: Icons.menu_book_outlined, message: 'Abhi koi entry nahi.');
+                  return EmptyState(icon: Icons.menu_book_outlined, message: tr('Abhi koi entry nahi.', 'No entries yet.'));
                 }
                 return days.build(i - 2, (line) => _LineTile(line: line, onTap: () => _onLineTap(line)));
               },
@@ -185,7 +186,7 @@ class _Header extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          Text('Baqaya', style: Theme.of(context).textTheme.labelMedium),
+          Text(tr('Baqaya', 'Balance'), style: Theme.of(context).textTheme.labelMedium),
           const SizedBox(height: 2),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -203,14 +204,14 @@ class _Header extends StatelessWidget {
           ),
           if (p.archived) ...[
             const SizedBox(height: 12),
-            Tag('Archive shuda: nayi entry nahi ho sakti', color: k.dena),
+            Tag(tr('Archive shuda: nayi entry nahi ho sakti', 'Archived: no new entries'), color: k.dena),
           ] else ...[
             const SizedBox(height: 20),
             Row(
               children: [
-                ActionButton(icon: Icons.south_west_rounded, label: 'Paise mile', color: k.lena, onTap: onReceived),
+                ActionButton(icon: Icons.south_west_rounded, label: tr('Paise mile', 'Received'), color: k.lena, onTap: onReceived),
                 const SizedBox(width: 12),
-                ActionButton(icon: Icons.north_east_rounded, label: 'Paise diye', color: k.dena, onTap: onPaid),
+                ActionButton(icon: Icons.north_east_rounded, label: tr('Paise diye', 'Paid'), color: k.dena, onTap: onPaid),
               ],
             ),
           ],
@@ -251,7 +252,7 @@ class _LineTile extends StatelessWidget {
         children: [
           if (!l.isBroughtForward)
             Amount(l.amount, signed: true, size: 15, color: l.cancelled ? k.muted : k.forBalance(l.amount)),
-          Text('Baqaya ${plainNumber(l.balance ?? 0)}',
+          Text('${tr('Baqaya', 'Balance')} ${plainNumber(l.balance ?? 0)}',
               style: TextStyle(fontSize: 12, color: k.muted, fontFeatures: tabular)),
         ],
       ),

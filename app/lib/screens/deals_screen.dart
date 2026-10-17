@@ -6,6 +6,7 @@ import '../ui/theme.dart';
 import 'deal_form_screen.dart';
 import 'deal_screen.dart';
 import 'home_screen.dart';
+import '../l10n/lang.dart';
 
 IconData dealIcon(DealKind kind) => switch (kind) {
       DealKind.purchase => Icons.move_to_inbox_rounded,
@@ -66,11 +67,11 @@ class _DealsScreenState extends State<DealsScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-              child: Text('Naya sauda', style: Theme.of(context).textTheme.titleLarge),
+              child: Text(tr('Naya sauda', 'New deal'), style: Theme.of(context).textTheme.titleLarge),
             ),
-            option(DealKind.purchase, 'Aap ne maal khareeda'),
-            option(DealKind.sale, 'Aap ne maal becha'),
-            option(DealKind.commission, 'Aap ne bechne aur khareedne wale ka sauda karwaya'),
+            option(DealKind.purchase, tr('Aap ne maal khareeda', 'You bought goods')),
+            option(DealKind.sale, tr('Aap ne maal becha', 'You sold goods')),
+            option(DealKind.commission, tr('Aap ne bechne aur khareedne wale ka sauda karwaya', 'You arranged a deal between a seller and a buyer')),
             const SizedBox(height: 12),
           ],
         ),
@@ -84,10 +85,10 @@ class _DealsScreenState extends State<DealsScreen> {
     final repo = Repo.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sauday'),
+        title: Text(tr('Sauday', 'Deals')),
         actions: [
           IconButton(
-            tooltip: _showCancelled ? 'Cancel shuda chhupayein' : 'Cancel shuda dikhayein',
+            tooltip: _showCancelled ? tr('Cancel shuda chhupayein', 'Hide cancelled') : tr('Cancel shuda dikhayein', 'Show cancelled'),
             icon: Icon(_showCancelled ? Icons.visibility_rounded : Icons.visibility_off_outlined),
             onPressed: () => setState(() => _showCancelled = !_showCancelled),
           ),
@@ -97,14 +98,14 @@ class _DealsScreenState extends State<DealsScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _newDeal,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Naya sauda'),
+        label: Text(tr('Naya sauda', 'New deal')),
       ),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 4, bottom: 4),
             child: FilterChips<DealKind?>(
-              options: [(null, 'Sab'), for (final k in DealKind.values) (k, k.label)],
+              options: [(null, tr('Sab', 'All')), for (final k in DealKind.values) (k, k.label)],
               selected: _kind,
               onSelected: (k) => setState(() => _kind = k),
             ),
@@ -119,8 +120,8 @@ class _DealsScreenState extends State<DealsScreen> {
                 return RefreshIndicator(
                   onRefresh: reload,
                   child: list.isEmpty
-                      ? ListView(children: const [
-                          EmptyState(icon: Icons.swap_horiz_rounded, message: 'Abhi koi sauda nahi.\n“Naya sauda” dabayein.'),
+                      ? ListView(children: [
+                          EmptyState(icon: Icons.swap_horiz_rounded, message: tr('Abhi koi sauda nahi.\n“Naya sauda” dabayein.', 'No deals yet.\nTap “New deal”.')),
                         ])
                       : ListView.builder(
                           padding: const EdgeInsets.only(bottom: 96),

@@ -5,6 +5,7 @@ import '../ui/common.dart';
 import 'home_screen.dart';
 import 'party_form_screen.dart';
 import 'party_screen.dart';
+import '../l10n/lang.dart';
 
 /// The Khata tab: every party with its live balance.
 class PartiesScreen extends StatefulWidget {
@@ -28,10 +29,10 @@ class _PartiesScreenState extends State<PartiesScreen> {
     final repo = Repo.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(_showArchived ? 'Archive' : 'Khata'),
+        title: Text(_showArchived ? 'Archive' : tr('Khata', 'Parties')),
         actions: [
           IconButton(
-            tooltip: _showArchived ? 'Archive chhupayein' : 'Archive dikhayein',
+            tooltip: _showArchived ? tr('Archive chhupayein', 'Hide archive') : tr('Archive dikhayein', 'Show archive'),
             icon: Icon(_showArchived ? Icons.unarchive_outlined : Icons.archive_outlined),
             onPressed: () => setState(() => _showArchived = !_showArchived),
           ),
@@ -41,7 +42,7 @@ class _PartiesScreenState extends State<PartiesScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _open(const PartyFormScreen()),
         icon: const Icon(Icons.person_add_alt_1_rounded),
-        label: const Text('Nayi party'),
+        label: Text(tr('Nayi party', 'New party')),
       ),
       body: AsyncView<List<PartyBalance>>(
         cacheKey: 'parties',
@@ -71,9 +72,9 @@ class _PartiesScreenState extends State<PartiesScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
               child: TextField(
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   prefixIcon: Icon(Icons.search_rounded),
-                  hintText: 'Naam ya shehar talaash karein',
+                  hintText: tr('Naam ya shehar talaash karein', 'Search name or city'),
                 ),
                 onChanged: (s) => setState(() => _search = s),
               ),
@@ -81,9 +82,9 @@ class _PartiesScreenState extends State<PartiesScreen> {
             if (!_showArchived)
               FilterChips<_Filter>(
                 options: [
-                  (_Filter.all, 'Sab ${active.length}'),
-                  (_Filter.receive, 'Lena hai $receiveCount'),
-                  (_Filter.pay, 'Dena hai $payCount'),
+                  (_Filter.all, '${tr('Sab', 'All')} ${active.length}'),
+                  (_Filter.receive, '${tr('Lena hai', 'To receive')} $receiveCount'),
+                  (_Filter.pay, '${tr('Dena hai', 'To pay')} $payCount'),
                 ],
                 selected: _filter,
                 onSelected: (f) => setState(() => _filter = f),
@@ -100,11 +101,11 @@ class _PartiesScreenState extends State<PartiesScreen> {
                 if (i < header.length) return header[i];
                 if (list.isEmpty) {
                   return all.isEmpty
-                      ? const EmptyState(
+                      ? EmptyState(
                           icon: Icons.people_outline_rounded,
-                          message: 'Abhi koi party nahi.\nApne supplier, gahak aur transporter shamil karein.',
+                          message: tr('Abhi koi party nahi.\nApne supplier, gahak aur transporter shamil karein.', 'No parties yet.\nAdd your suppliers, buyers and transporters.'),
                         )
-                      : const EmptyState(icon: Icons.search_off_rounded, message: 'Koi party nahi mili.');
+                      : EmptyState(icon: Icons.search_off_rounded, message: tr('Koi party nahi mili.', 'No party found.'));
                 }
                 final n = i - header.length;
                 final p = list[n];

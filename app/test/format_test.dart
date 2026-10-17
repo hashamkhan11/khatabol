@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:khatabol/data/models.dart';
+import 'package:khatabol/l10n/lang.dart';
 import 'package:khatabol/util/format.dart';
 
 void main() {
@@ -36,6 +37,11 @@ void main() {
     expect(balanceLabel(100), 'Lena hai');
     expect(balanceLabel(-100), 'Dena hai');
     expect(balanceLabel(0), 'Hisaab barabar');
+    appLang.value = AppLang.english;
+    addTearDown(() => appLang.value = AppLang.romanUrdu);
+    expect(balanceLabel(100), 'To receive');
+    expect(balanceLabel(-100), 'To pay');
+    expect(balanceLabel(0), 'Settled');
   });
 
   group('models parse database rows', () {

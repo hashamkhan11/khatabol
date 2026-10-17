@@ -4,15 +4,17 @@ import '../data/models.dart';
 import '../ui/common.dart';
 import '../ui/theme.dart';
 import '../util/format.dart';
+import '../l10n/lang.dart';
 
 enum _Range {
-  thisMonth('Is mahine'),
-  lastMonth('Pichle mahine'),
-  thisYear('Is saal'),
-  custom('Apni tareekhein');
+  thisMonth('Is mahine', 'This month'),
+  lastMonth('Pichle mahine', 'Last month'),
+  thisYear('Is saal', 'This year'),
+  custom('Apni tareekhein', 'Pick dates');
 
-  const _Range(this.label);
-  final String label;
+  const _Range(this._ru, this._en);
+  final String _ru, _en;
+  String get label => tr(_ru, _en);
 }
 
 /// The Munafa screen. Profit = sales − cost of the cloth sold + commission − costs.
@@ -64,7 +66,7 @@ class _ProfitScreenState extends State<ProfitScreen> {
     final k = KColors.of(context);
     final key = 'profit:${_dates.start.toIso8601String()}:${_dates.end.toIso8601String()}';
     return Scaffold(
-      appBar: AppBar(title: const Text('Munafa')),
+      appBar: AppBar(title: Text(tr('Munafa', 'Profit'))),
       body: Column(
         children: [
           const SizedBox(height: 4),
@@ -104,7 +106,7 @@ class _ProfitScreenState extends State<ProfitScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(net >= 0 ? 'Khalis munafa' : 'Khalis nuqsan',
+                                      Text(net >= 0 ? tr('Khalis munafa', 'Net profit') : tr('Khalis nuqsan', 'Net loss'),
                                           style: Theme.of(context).textTheme.titleSmall),
                                       Text('${formatDate(_dates.start)} – ${formatDate(_dates.end)}',
                                           style: TextStyle(color: k.muted, fontSize: 13, fontFeatures: tabular)),
@@ -123,37 +125,40 @@ class _ProfitScreenState extends State<ProfitScreen> {
                         ),
                       ),
                       Section(
-                        title: 'Khareed o farokht',
+                        title: tr('Khareed o farokht', 'Trading'),
                         dividerIndent: 16,
                         children: [
-                          InfoRow('Farokht', money(r.salesAmount)),
-                          InfoRow('Beche gaye maal ki laagat', '− ${money(r.costOfGoodsSold)}'),
-                          if (r.saleCosts != 0) InfoRow('Farokht par mere kharchay', '− ${money(r.saleCosts)}'),
-                          _total(k, 'Maal ka munafa', r.tradingProfit),
+                          InfoRow(tr('Farokht', 'Sales'), money(r.salesAmount)),
+                          InfoRow(tr('Beche gaye maal ki laagat', 'Cost of goods sold'), '− ${money(r.costOfGoodsSold)}'),
+                          if (r.saleCosts != 0) InfoRow(tr('Farokht par mere kharchay', 'My costs on sales'), '− ${money(r.saleCosts)}'),
+                          _total(k, tr('Maal ka munafa', 'Trading profit'), r.tradingProfit),
                         ],
                       ),
                       Section(
                         title: 'Commission',
                         dividerIndent: 16,
                         children: [
-                          InfoRow('Commission ki kamai', money(r.commissionIncome)),
+                          InfoRow(tr('Commission ki kamai', 'Commission earned'), money(r.commissionIncome)),
                           if (r.commissionCosts != 0)
-                            InfoRow('Commission saudon par mere kharchay', '− ${money(r.commissionCosts)}'),
+                            InfoRow(tr('Commission saudon par mere kharchay', 'My costs on commission deals'), '− ${money(r.commissionCosts)}'),
                         ],
                       ),
                       Section(
-                        title: 'Deegar',
+                        title: tr('Deegar', 'Other'),
                         dividerIndent: 16,
                         children: [
-                          InfoRow('Kharchay', '− ${money(r.expenses)}'),
-                          if (r.stockLosses != 0) InfoRow('Stock ka nuqsan', '− ${money(r.stockLosses)}'),
-                          _total(k, 'Khalis munafa', net),
+                          InfoRow(tr('Kharchay', 'Expenses'), '− ${money(r.expenses)}'),
+                          if (r.stockLosses != 0) InfoRow(tr('Stock ka nuqsan', 'Stock losses'), '− ${money(r.stockLosses)}'),
+                          _total(k, tr('Khalis munafa', 'Net profit'), net),
                         ],
                       ),
                       if (r.hasEstimates)
-                        const FormHint(
-                          'Kuch maal khareed darj hone se pehle bika ya stock se nikla, is liye us ki laagat andaza hai. '
-                          'Sahi munafay ke liye baqi khareed darj karein.',
+                        FormHint(
+                          tr(
+                              'Kuch maal khareed darj hone se pehle bika ya stock se nikla, is liye us ki laagat andaza hai. '
+                                  'Sahi munafay ke liye baqi khareed darj karein.',
+                              'Some goods were sold or taken out before their purchase was entered, so their cost is estimated. '
+                                  'Enter the missing purchases for exact profit.'),
                           warn: true,
                           margin: EdgeInsets.fromLTRB(16, 16, 16, 0),
                         ),

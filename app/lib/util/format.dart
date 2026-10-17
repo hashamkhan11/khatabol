@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import '../l10n/lang.dart';
+
 final _money = NumberFormat('#,##0.##', 'en_US');
 final _weight = NumberFormat('#,##0.###', 'en_US');
 final _date = DateFormat('d MMM yyyy');
@@ -49,7 +51,7 @@ num roundMoney(num value) => (value * 100).round() / 100;
 ///   positive: the party owes us   -> "Lena hai" (we will receive)
 ///   negative: we owe the party    -> "Dena hai" (we will pay)
 String balanceLabel(num balance) {
-  if (balance > 0) return 'Lena hai';
-  if (balance < 0) return 'Dena hai';
-  return 'Hisaab barabar';
+  if (balance > 0) return tr('Lena hai', 'To receive');
+  if (balance < 0) return tr('Dena hai', 'To pay');
+  return tr('Hisaab barabar', 'Settled');
 }

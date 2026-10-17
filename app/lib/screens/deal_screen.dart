@@ -8,6 +8,7 @@ import '../ui/theme.dart';
 import '../util/format.dart';
 import 'deal_form_screen.dart';
 import 'deals_screen.dart';
+import '../l10n/lang.dart';
 
 /// A deal's details and every khata line it wrote. Deals are never changed in
 /// place: editing cancels this deal and records a corrected one.
@@ -43,14 +44,17 @@ class _DealScreenState extends State<DealScreen> {
   Future<void> _cancel(Deal deal) async {
     final reason = await askCancelReason(
       context,
-      title: 'Yeh sauda cancel karna hai?',
-      message: 'Is sauday ki har khata line ke saamne cancel ki line jurr jayegi, aur yeh stock aur munafay se nikal jayega. '
-          'Kuch delete nahi hota.',
+      title: tr('Yeh sauda cancel karna hai?', 'Cancel this deal?'),
+      message: tr(
+          'Is sauday ki har khata line ke saamne cancel ki line jurr jayegi, aur yeh stock aur munafay se nikal jayega. '
+              'Kuch delete nahi hota.',
+          'Every ledger line of this deal gets a cancelling line, and it leaves stock and profit. '
+              'Nothing is deleted.'),
     );
     if (reason == null || !mounted) return;
     try {
       await Repo.of(context).cancelDeal(deal.id, reason: reason);
-      if (mounted) showDone(context, 'Sauda cancel ho gaya');
+      if (mounted) showDone(context, tr('Sauda cancel ho gaya', 'Deal cancelled'));
     } catch (e) {
       if (mounted) showError(context, e);
     }
@@ -78,27 +82,27 @@ class _DealScreenState extends State<DealScreen> {
                   onCancel: deal.cancelled ? null : () => _cancel(deal),
                 ),
                 Section(
-                  title: 'Tafseel',
+                  title: tr('Tafseel', 'Details'),
                   dividerIndent: 16,
                   children: [
-                    InfoRow('Tareekh', formatDate(deal.date)),
+                    InfoRow(tr('Tareekh', 'Date'), formatDate(deal.date)),
                     InfoRow(
                       switch (deal.kind) {
                         DealKind.purchase => 'Supplier',
-                        DealKind.sale => 'Gahak',
-                        DealKind.commission => 'Bechne wala',
+                        DealKind.sale => tr('Gahak', 'Buyer'),
+                        DealKind.commission => tr('Bechne wala', 'Seller'),
                       },
                       deal.partyName,
                     ),
-                    if (deal.buyerName != null) InfoRow('Khareedne wala', deal.buyerName!),
-                    if (deal.itemName != null) InfoRow('Kapre ki qisam', deal.itemName!),
-                    if (deal.weightKg != null) InfoRow('Wazan', kg(deal.weightKg!)),
-                    if (deal.rate != null) InfoRow('Rate', '${money(deal.rate!)} fi kg'),
-                    if (deal.goodsAmount != null) InfoRow('Maal ki raqam', money(deal.goodsAmount!)),
+                    if (deal.buyerName != null) InfoRow(tr('Khareedne wala', 'Buyer'), deal.buyerName!),
+                    if (deal.itemName != null) InfoRow(tr('Kapre ki qisam', 'Cloth type'), deal.itemName!),
+                    if (deal.weightKg != null) InfoRow(tr('Wazan', 'Weight'), kg(deal.weightKg!)),
+                    if (deal.rate != null) InfoRow('Rate', '${money(deal.rate!)} ${tr('fi kg', 'per kg')}'),
+                    if (deal.goodsAmount != null) InfoRow(tr('Maal ki raqam', 'Goods amount'), money(deal.goodsAmount!)),
                     if (deal.kind == DealKind.commission)
-                      InfoRow('Maal ke paise', deal.goodsThroughMe ? 'Mere zariye' : 'Seedhay, khareedne wale se bechne wale ko'),
+                      InfoRow(tr('Maal ke paise', 'Goods money'), deal.goodsThroughMe ? tr('Mere zariye', 'Through me') : tr('Seedhay, khareedne wale se bechne wale ko', 'Direct, from buyer to seller')),
                     if (deal.notes != null) InfoRow('Note', deal.notes!),
-                    if (deal.source != 'app') InfoRow('Kahan se darj hua', deal.source == 'whatsapp' ? 'WhatsApp' : deal.source),
+                    if (deal.source != 'app') InfoRow(tr('Kahan se darj hua', 'Entered from'), deal.source == 'whatsapp' ? 'WhatsApp' : deal.source),
                   ],
                 ),
                 if (deal.commissions.isNotEmpty)
@@ -109,9 +113,9 @@ class _DealScreenState extends State<DealScreen> {
                       for (final c in deal.commissions)
                         InfoRow(
                           '${names[c.partyId] ?? ''} · ${switch (c.mode) {
-                            CommissionMode.perKg => '${plainNumber(c.value)} fi kg',
+                            CommissionMode.perKg => '${plainNumber(c.value)} ${tr('fi kg', 'per kg')}',
                             CommissionMode.percent => '${plainNumber(c.value)}%',
-                            CommissionMode.fixed => 'pakki raqam',
+                            CommissionMode.fixed => tr('pakki raqam', 'fixed amount'),
                           }}',
                           money(c.amount ?? 0),
                         ),
@@ -119,19 +123,19 @@ class _DealScreenState extends State<DealScreen> {
                   ),
                 if (deal.costs.isNotEmpty)
                   Section(
-                    title: 'Izafi kharchay',
+                    title: tr('Izafi kharchay', 'Extra costs'),
                     dividerIndent: 16,
                     children: [
                       for (final c in deal.costs)
                         InfoRow(
-                          '${c.description} · ${c.chargedToId == null ? 'mere zimme' : '${names[c.chargedToId] ?? 'party'} ke zimme'}'
-                          '${c.paidToName == null ? '' : ' · ${c.paidToName} ko dena hai'}',
+                          '${c.description} · ${c.chargedToId == null ? tr('mere zimme', 'on me') : tr('${names[c.chargedToId] ?? 'party'} ke zimme', 'on ${names[c.chargedToId] ?? 'party'}')}'
+                          '${c.paidToName == null ? '' : ' · ${tr('${c.paidToName} ko dena hai', 'to pay ${c.paidToName}')}'}',
                           money(c.amount),
                         ),
                     ],
                   ),
                 Section(
-                  title: 'Khata ki lines',
+                  title: tr('Khata ki lines', 'Ledger lines'),
                   children: [
                     for (final e in entries)
                       ListTile(
@@ -142,8 +146,8 @@ class _DealScreenState extends State<DealScreen> {
                       ),
                   ],
                 ),
-                const FormHint(
-                  '+ ka matlab party se lena barha. − ka matlab party ko dena barha.',
+                FormHint(
+                  tr('+ ka matlab party se lena barha. − ka matlab party ko dena barha.', '+ means more to receive from the party. − means more to pay them.'),
                   margin: EdgeInsets.fromLTRB(16, 16, 16, 0),
                 ),
               ],
@@ -169,7 +173,7 @@ class _Header extends StatelessWidget {
     final summary = [
       if (deal.itemName != null) deal.itemName!,
       if (deal.weightKg != null) kg(deal.weightKg!),
-      if (deal.rate != null) '${money(deal.rate!)} fi kg',
+      if (deal.rate != null) '${money(deal.rate!)} ${tr('fi kg', 'per kg')}',
     ].join(' · ');
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -212,7 +216,7 @@ class _Header extends StatelessWidget {
           ],
           const SizedBox(height: 16),
           if (deal.cancelled)
-            FormHint('Cancel shuda${deal.cancelReason == null ? '' : ': ${deal.cancelReason}'}', warn: true)
+            FormHint('${tr('Cancel shuda', 'Cancelled')}${deal.cancelReason == null ? '' : ': ${deal.cancelReason}'}', warn: true)
           else
             Row(
               children: [
@@ -220,7 +224,7 @@ class _Header extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: onEdit,
                     icon: const Icon(Icons.edit_outlined, size: 20),
-                    label: const Text('Badlein'),
+                    label: Text(tr('Badlein', 'Edit')),
                   ),
                 ),
                 const SizedBox(width: 12),

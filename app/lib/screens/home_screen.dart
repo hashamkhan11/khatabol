@@ -9,6 +9,7 @@ import 'deals_screen.dart';
 import 'expenses_screen.dart';
 import 'parties_screen.dart';
 import 'stock_screen.dart';
+import '../l10n/lang.dart';
 
 /// The five tabs. Each tab stays alive while another is shown, so switching
 /// is instant; a tab that missed a change refreshes when it is shown again.
@@ -69,21 +70,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         child: NavigationBar(
           selectedIndex: _tab,
           onDestinationSelected: (i) => setState(() => _tab = i),
-          destinations: const [
+          destinations: [
             NavigationDestination(
                 icon: Icon(Icons.space_dashboard_outlined),
                 selectedIcon: Icon(Icons.space_dashboard_rounded),
-                label: 'Khulasa'),
+                label: tr('Khulasa', 'Summary')),
             NavigationDestination(
-                icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book_rounded), label: 'Khata'),
+                icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book_rounded), label: tr('Khata', 'Parties')),
             NavigationDestination(
-                icon: Icon(Icons.swap_horiz_rounded), selectedIcon: Icon(Icons.swap_horiz_rounded), label: 'Sauday'),
+                icon: Icon(Icons.swap_horiz_rounded), selectedIcon: Icon(Icons.swap_horiz_rounded), label: tr('Sauday', 'Deals')),
             NavigationDestination(
                 icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2_rounded), label: 'Stock'),
             NavigationDestination(
                 icon: Icon(Icons.receipt_long_outlined),
                 selectedIcon: Icon(Icons.receipt_long_rounded),
-                label: 'Kharchay'),
+                label: tr('Kharchay', 'Expenses')),
           ],
         ),
       ),
@@ -91,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 }
 
-/// App bar button with the signed-in account and sign out.
+/// App bar button with the signed-in account, the language switch and sign out.
 class AccountMenuButton extends StatelessWidget {
   const AccountMenuButton({super.key});
 
@@ -114,15 +115,29 @@ class AccountMenuButton extends StatelessWidget {
         itemBuilder: (_) => [
           PopupMenuItem(enabled: false, child: Text(email, style: TextStyle(color: k.muted, fontSize: 14))),
           const PopupMenuDivider(),
-          const PopupMenuItem(
+          PopupMenuItem(
+            enabled: false,
+            height: 32,
+            child: Text(tr('Zubaan', 'Language'), style: TextStyle(color: k.muted, fontSize: 13)),
+          ),
+          for (final lang in AppLang.values)
+            CheckedPopupMenuItem(value: lang.code, checked: appLang.value == lang, child: Text(lang.label)),
+          const PopupMenuDivider(),
+          PopupMenuItem(
             value: 'out',
-            child: Row(children: [Icon(Icons.logout_rounded, size: 20), SizedBox(width: 12), Text('Sign out karein')]),
+            child: Row(children: [
+              const Icon(Icons.logout_rounded, size: 20),
+              const SizedBox(width: 12),
+              Text(tr('Sign out karein', 'Sign out')),
+            ]),
           ),
         ],
         onSelected: (v) async {
+          final lang = AppLang.values.where((l) => l.code == v).firstOrNull;
+          if (lang != null) return setLang(lang);
           if (v != 'out') return;
           final repo = Repo.of(context);
-          if (await confirm(context, title: 'Sign out karna hai?', action: 'Sign out')) {
+          if (await confirm(context, title: tr('Sign out karna hai?', 'Sign out?'), action: 'Sign out')) {
             await repo.stopLive();
             // The next person to sign in on this phone must not see this khata.
             repo.clearCache();
