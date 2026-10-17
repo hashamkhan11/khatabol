@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../util/format.dart';
@@ -13,6 +16,58 @@ class LedgerRepository {
   LedgerRepository(this._db);
 
   final SupabaseClient _db;
+
+  /// The last result of each screen's load, so a screen opened again shows
+  /// it at once and refreshes in the background.
+  final cache = <String, Object?>{};
+
+  /// Ticks after every change to the khata: a save in the app, or one from
+  /// the WhatsApp bot that arrives live. Screens listen and refresh.
+  final changes = ValueNotifier<int>(0);
+
+  void markChanged() => changes.value++;
+
+  /// Forgets everything loaded, e.g. on sign out.
+  void clearCache() => cache.clear();
+
+  Future<dynamic> _write(String fn, {Map<String, dynamic>? params}) async {
+    final result = await _db.rpc(fn, params: params);
+    markChanged();
+    return result;
+  }
+
+  // ---------------- Live changes ----------------
+
+  RealtimeChannel? _live;
+  Timer? _liveDebounce;
+
+  /// Listens for rows changed outside the app (the WhatsApp bot), so open
+  /// screens update by themselves. Row-level security limits the events to
+  /// the signed-in user's own rows.
+  void startLive() {
+    if (_live != null) return;
+    final channel = _db.channel('khata-live');
+    for (final table in const ['khata_entries', 'deals', 'expenses', 'stock_adjustments', 'parties', 'items']) {
+      channel.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: table,
+        // One save touches several tables; refresh once for all of them.
+        callback: (_) {
+          _liveDebounce?.cancel();
+          _liveDebounce = Timer(const Duration(milliseconds: 500), markChanged);
+        },
+      );
+    }
+    _live = channel..subscribe();
+  }
+
+  Future<void> stopLive() async {
+    _liveDebounce?.cancel();
+    final channel = _live;
+    _live = null;
+    if (channel != null) await _db.removeChannel(channel);
+  }
 
   static const _dealSelect = '*, '
       'party:parties!deals_party_id_fkey(name), '
@@ -47,7 +102,7 @@ class LedgerRepository {
     num openingBalance = 0,
     DateTime? openingDate,
   }) async {
-    final id = await _db.rpc('create_party', params: {
+    final id = await _write('create_party', params: {
       'p_name': name,
       'p_type': type.name,
       'p_phone': _blankToNull(phone),
@@ -68,7 +123,7 @@ class LedgerRepository {
     String? city,
     String? notes,
   }) =>
-      _db.rpc('update_party', params: {
+      _write('update_party', params: {
         'p_id': p.id,
         'p_name': name,
         'p_type': type.name,
@@ -79,7 +134,7 @@ class LedgerRepository {
       });
 
   Future<void> setPartyArchived(String id, bool archived) =>
-      _db.rpc('set_party_archived', params: {'p_id': id, 'p_archived': archived});
+      _write('set_party_archived', params: {'p_id': id, 'p_archived': archived});
 
   Future<List<KhataLine>> statement(String partyId, {DateTime? from, DateTime? to, bool includeCancelled = false}) async {
     final rows = await _db.rpc('party_statement', params: {
@@ -114,7 +169,7 @@ class LedgerRepository {
     required PaymentMethod method,
     String? note,
   }) =>
-      _db.rpc('record_payment', params: {
+      _write('record_payment', params: {
         'p_party_id': partyId,
         'p_direction': received ? 'in' : 'out',
         'p_amount': amount,
@@ -130,7 +185,7 @@ class LedgerRepository {
     required String note,
     required DateTime date,
   }) =>
-      _db.rpc('record_adjustment', params: {
+      _write('record_adjustment', params: {
         'p_party_id': partyId,
         'p_amount': amount,
         'p_note': note,
@@ -138,7 +193,7 @@ class LedgerRepository {
       });
 
   Future<void> reverseEntry(String entryId, {String? reason}) =>
-      _db.rpc('reverse_entry', params: {'p_entry_id': entryId, 'p_reason': _blankToNull(reason)});
+      _write('reverse_entry', params: {'p_entry_id': entryId, 'p_reason': _blankToNull(reason)});
 
   // ---------------- Cloth types & stock ----------------
 
@@ -148,13 +203,13 @@ class LedgerRepository {
   }
 
   Future<String> createItem(String nameEn, String? nameUr) async =>
-      await _db.rpc('create_item', params: {'p_name_en': nameEn, 'p_name_ur': _blankToNull(nameUr)}) as String;
+      await _write('create_item', params: {'p_name_en': nameEn, 'p_name_ur': _blankToNull(nameUr)}) as String;
 
   Future<void> updateItem(String id, String nameEn, String? nameUr) =>
-      _db.rpc('update_item', params: {'p_id': id, 'p_name_en': nameEn, 'p_name_ur': _blankToNull(nameUr)});
+      _write('update_item', params: {'p_id': id, 'p_name_en': nameEn, 'p_name_ur': _blankToNull(nameUr)});
 
   Future<void> setItemArchived(String id, bool archived) =>
-      _db.rpc('set_item_archived', params: {'p_id': id, 'p_archived': archived});
+      _write('set_item_archived', params: {'p_id': id, 'p_archived': archived});
 
   Future<List<StockRow>> stockSummary() async {
     final rows = await _db.rpc('stock_summary') as List;
@@ -171,7 +226,7 @@ class LedgerRepository {
     required DateTime date,
     String? reason,
   }) =>
-      _db.rpc('record_stock_adjustment', params: {
+      _write('record_stock_adjustment', params: {
         'p_item_id': itemId,
         'p_kind': kind.db,
         'p_weight_kg': weightKg,
@@ -181,7 +236,7 @@ class LedgerRepository {
       });
 
   Future<void> cancelStockAdjustment(String id, {String? reason}) =>
-      _db.rpc('cancel_stock_adjustment', params: {'p_id': id, 'p_reason': reason});
+      _write('cancel_stock_adjustment', params: {'p_id': id, 'p_reason': reason});
 
   /// One cloth type's stock register, oldest first.
   Future<List<StockMove>> stockHistory(String itemId) async {
@@ -217,14 +272,14 @@ class LedgerRepository {
   }
 
   Future<String> recordDeal(DealDraft draft) async =>
-      await _db.rpc('record_deal', params: {'p': draft.toJson()}) as String;
+      await _write('record_deal', params: {'p': draft.toJson()}) as String;
 
   /// Edits a deal: the old one is cancelled and the corrected one recorded.
   Future<String> replaceDeal(String dealId, DealDraft draft) async =>
-      await _db.rpc('replace_deal', params: {'p_deal_id': dealId, 'p': draft.toJson()}) as String;
+      await _write('replace_deal', params: {'p_deal_id': dealId, 'p': draft.toJson()}) as String;
 
   Future<void> cancelDeal(String dealId, {String? reason}) =>
-      _db.rpc('cancel_deal', params: {'p_deal_id': dealId, 'p_reason': _blankToNull(reason)});
+      _write('cancel_deal', params: {'p_deal_id': dealId, 'p_reason': _blankToNull(reason)});
 
   // ---------------- Expenses ----------------
 
@@ -246,7 +301,7 @@ class LedgerRepository {
     String? paidToId,
     String? notes,
   }) =>
-      _db.rpc('record_expense', params: {
+      _write('record_expense', params: {
         'p_category': category,
         'p_amount': amount,
         'p_date': isoDate(date),
@@ -255,7 +310,7 @@ class LedgerRepository {
       });
 
   Future<void> cancelExpense(String id, {String? reason}) =>
-      _db.rpc('cancel_expense', params: {'p_expense_id': id, 'p_reason': _blankToNull(reason)});
+      _write('cancel_expense', params: {'p_expense_id': id, 'p_reason': _blankToNull(reason)});
 
   /// Categories used before, most recent first, to suggest while typing.
   Future<List<String>> expenseCategories() async {

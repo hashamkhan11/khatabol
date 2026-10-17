@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../ui/common.dart';
+import '../ui/theme.dart';
 
 /// Email and password sign-in. There is no sign-up: the account is created
 /// by the owner in the Supabase dashboard, so strangers cannot register.
@@ -43,49 +44,101 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final k = KColors.of(context);
     return Scaffold(
+      backgroundColor: k.ink,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+        bottom: false,
+        child: LayoutBuilder(
+          builder: (context, box) => SingleChildScrollView(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: AutofillGroup(
+              constraints: BoxConstraints(minHeight: box.maxHeight),
+              child: IntrinsicHeight(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(Icons.menu_book_rounded, size: 56, color: theme.colorScheme.primary),
-                    const SizedBox(height: 12),
-                    Text('KhataBol', textAlign: TextAlign.center, style: theme.textTheme.headlineMedium),
-                    Text('Apna khata, apni zubaan', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
-                    const SizedBox(height: 32),
-                    TextField(
-                      controller: _email,
-                      keyboardType: TextInputType.emailAddress,
-                      autofillHints: const [AutofillHints.email],
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(labelText: 'Email'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _password,
-                      obscureText: _hidePassword,
-                      autofillHints: const [AutofillHints.password],
-                      onSubmitted: (_) => _signIn(),
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        suffixIcon: IconButton(
-                          icon: Icon(_hidePassword ? Icons.visibility : Icons.visibility_off),
-                          onPressed: () => setState(() => _hidePassword = !_hidePassword),
-                        ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(28, 48, 28, 40),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: k.onInk.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: Icon(Icons.menu_book_rounded, size: 30, color: k.onInk),
+                          ),
+                          const SizedBox(height: 28),
+                          Text('KhataBol',
+                              style: theme.textTheme.displaySmall
+                                  ?.copyWith(color: k.onInk, fontWeight: FontWeight.w800, letterSpacing: -1)),
+                          const SizedBox(height: 6),
+                          Text('Apna khata, apni zubaan',
+                              style: theme.textTheme.titleMedium?.copyWith(color: k.onInk.withValues(alpha: 0.72))),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: _busy ? null : _signIn,
-                      child: _busy
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Sign in karein'),
+                    Expanded(
+                      child: Container(
+                        padding: EdgeInsets.fromLTRB(24, 32, 24, 24 + MediaQuery.paddingOf(context).bottom),
+                        decoration: BoxDecoration(
+                          color: k.paper,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                        ),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 400),
+                            child: AutofillGroup(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  Text('Sign in karein', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 4),
+                                  Text('Apne account ki email aur password likhein.', style: TextStyle(color: k.muted)),
+                                  const SizedBox(height: 24),
+                                  TextField(
+                                    controller: _email,
+                                    keyboardType: TextInputType.emailAddress,
+                                    autofillHints: const [AutofillHints.email],
+                                    textInputAction: TextInputAction.next,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Email',
+                                      prefixIcon: Icon(Icons.mail_outline_rounded),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  TextField(
+                                    controller: _password,
+                                    obscureText: _hidePassword,
+                                    autofillHints: const [AutofillHints.password],
+                                    onSubmitted: (_) => _signIn(),
+                                    decoration: InputDecoration(
+                                      labelText: 'Password',
+                                      prefixIcon: const Icon(Icons.lock_outline_rounded),
+                                      suffixIcon: IconButton(
+                                        icon: Icon(_hidePassword ? Icons.visibility_rounded : Icons.visibility_off_rounded),
+                                        onPressed: () => setState(() => _hidePassword = !_hidePassword),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  FilledButton(
+                                    onPressed: _busy ? null : _signIn,
+                                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(54)),
+                                    child: _busy
+                                        ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.4))
+                                        : const Text('Sign in'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),

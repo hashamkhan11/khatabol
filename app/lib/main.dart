@@ -6,6 +6,7 @@ import 'data/ledger_repository.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'ui/common.dart';
+import 'ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,17 +26,12 @@ class KhataBolApp extends StatelessWidget {
       child: MaterialApp(
         title: 'KhataBol',
         debugShowCheckedModeBanner: false,
-        theme: _theme(Brightness.light),
-        darkTheme: _theme(Brightness.dark),
+        theme: buildTheme(Brightness.light),
+        darkTheme: buildTheme(Brightness.dark),
         home: _AuthGate(auth: client.auth),
       ),
     );
   }
-
-  ThemeData _theme(Brightness brightness) => ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF00695C), brightness: brightness),
-        inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder()),
-      );
 }
 
 /// Shows the login screen or the app, following the Supabase session.

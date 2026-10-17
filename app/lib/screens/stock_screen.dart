@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../ui/common.dart';
+import '../ui/theme.dart';
 import '../util/format.dart';
 import 'deal_screen.dart';
 import 'home_screen.dart';
@@ -15,24 +16,22 @@ class StockScreen extends StatefulWidget {
 }
 
 class _StockScreenState extends State<StockScreen> {
-  final _view = GlobalKey<AsyncViewState<List<StockRow>>>();
   bool _showArchived = false;
 
-  Future<void> _open(Widget screen) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
-    _view.currentState?.reload();
-  }
+  void _open(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 
   @override
   Widget build(BuildContext context) {
     final repo = Repo.of(context);
+    final k = KColors.of(context);
+    final primary = Theme.of(context).colorScheme.primary;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Stock'),
+        title: Text(_showArchived ? 'Stock archive' : 'Stock'),
         actions: [
           IconButton(
             tooltip: _showArchived ? 'Archive chhupayein' : 'Archive dikhayein',
-            icon: Icon(_showArchived ? Icons.inventory : Icons.inventory_outlined),
+            icon: Icon(_showArchived ? Icons.unarchive_outlined : Icons.archive_outlined),
             onPressed: () => setState(() => _showArchived = !_showArchived),
           ),
           const AccountMenuButton(),
@@ -40,11 +39,11 @@ class _StockScreenState extends State<StockScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _open(const ItemFormScreen()),
-        icon: const Icon(Icons.add),
+        icon: const Icon(Icons.add_rounded),
         label: const Text('Kapre ki qisam'),
       ),
       body: AsyncView<List<StockRow>>(
-        key: _view,
+        cacheKey: 'stock',
         load: repo.stockSummary,
         builder: (context, all, reload) {
           final rows = all.where((r) => r.archived == _showArchived).toList();
@@ -53,48 +52,85 @@ class _StockScreenState extends State<StockScreen> {
           return RefreshIndicator(
             onRefresh: reload,
             child: ListView(
-              padding: const EdgeInsets.only(bottom: 88),
+              padding: const EdgeInsets.only(bottom: 96),
               children: [
-                Card(
-                  margin: const EdgeInsets.all(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Expanded(child: Text('Kul stock\n${kg(totalKg)}')),
-                        Text('Qeemat\n${money(totalValue)}', textAlign: TextAlign.end),
-                      ],
-                    ),
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                  decoration: BoxDecoration(color: k.surface, borderRadius: BorderRadius.circular(22)),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Kul stock', style: Theme.of(context).textTheme.labelMedium),
+                            const SizedBox(height: 2),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(kg(totalKg),
+                                  style: TextStyle(
+                                      fontSize: 30,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.8,
+                                      fontFeatures: tabular,
+                                      color: totalKg < 0 ? k.dena : k.text)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text('Qeemat', style: Theme.of(context).textTheme.labelMedium),
+                          const SizedBox(height: 2),
+                          Amount(totalValue, size: 17),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
                 if (rows.isEmpty)
                   const EmptyState(
                     icon: Icons.inventory_2_outlined,
                     message: 'Abhi kapre ki koi qisam nahi.\nJo maal aap bechte hain woh shamil karein, jaise “Purana kapra”.',
-                  ),
-                for (final r in rows)
-                  ListTile(
-                    onTap: () => _open(StockItemScreen(row: r)),
-                    title: Text(r.item.displayName),
-                    subtitle: Text(r.avgCost == null ? 'Abhi koi khareed nahi' : 'Ausat laagat ${money(r.avgCost!)}/kg'),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(kg(r.weightKg),
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: r.weightKg < 0 ? AppColors.pay : null,
-                            )),
-                        Text(money(r.stockValue), style: Theme.of(context).textTheme.bodySmall),
-                      ],
-                    ),
+                  )
+                else
+                  Section(
+                    title: 'Kapre ki qisam',
+                    children: [
+                      for (final r in rows)
+                        ListTile(
+                          onTap: () => _open(StockItemScreen(row: r)),
+                          leading: RowIcon(Icons.checkroom_rounded,
+                              color: primary, background: primary.withValues(alpha: 0.1)),
+                          title: Text(r.item.displayName, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          subtitle: Text(r.avgCost == null ? 'Abhi koi khareed nahi' : 'Ausat ${money(r.avgCost!)}/kg'),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(kg(r.weightKg),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    fontFeatures: tabular,
+                                    color: r.weightKg < 0 ? k.dena : k.text,
+                                  )),
+                              Text(money(r.stockValue),
+                                  style: TextStyle(fontSize: 12, color: k.muted, fontFeatures: tabular)),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                 if (rows.any((r) => r.weightKg < 0))
-                  const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Laal stock zero se kam hai: khareed se zyada becha gaya. '
-                        'Shayad koi khareed abhi darj nahi hui.'),
+                  const FormHint(
+                    'Laal stock zero se kam hai: khareed se zyada becha gaya. Shayad koi khareed abhi darj nahi hui.',
+                    warn: true,
+                    margin: EdgeInsets.fromLTRB(16, 12, 16, 0),
                   ),
               ],
             ),
@@ -117,8 +153,6 @@ class StockItemScreen extends StatefulWidget {
 }
 
 class _StockItemScreenState extends State<StockItemScreen> {
-  final _view = GlobalKey<AsyncViewState<(StockRow, List<StockMove>)>>();
-
   Future<(StockRow, List<StockMove>)> _load() async {
     final repo = Repo.of(context);
     final id = widget.row.itemId;
@@ -127,10 +161,7 @@ class _StockItemScreenState extends State<StockItemScreen> {
     return (row, results[1] as List<StockMove>);
   }
 
-  Future<void> _open(Widget screen) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
-    _view.currentState?.reload();
-  }
+  void _open(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 
   /// A deal's stock line opens the deal; a stock in / out line can be cancelled.
   Future<void> _onMoveTap(StockMove m) async {
@@ -145,7 +176,6 @@ class _StockItemScreenState extends State<StockItemScreen> {
       if (reason == null) return;
       await repo.cancelStockAdjustment(m.adjustmentId!, reason: reason);
       if (mounted) showDone(context, 'Stock line cancel ho gayi');
-      _view.currentState?.reload();
     } catch (e) {
       if (mounted) showError(context, e);
     }
@@ -154,7 +184,6 @@ class _StockItemScreenState extends State<StockItemScreen> {
   Future<void> _toggleArchive(StockRow row) async {
     try {
       await Repo.of(context).setItemArchived(row.itemId, !row.archived);
-      _view.currentState?.reload();
     } catch (e) {
       if (mounted) showError(context, e);
     }
@@ -162,16 +191,20 @@ class _StockItemScreenState extends State<StockItemScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final k = KColors.of(context);
+    final primary = Theme.of(context).colorScheme.primary;
     return AsyncView<(StockRow, List<StockMove>)>(
-      key: _view,
+      cacheKey: 'stock:${widget.row.itemId}',
       load: _load,
+      skeleton: const SkeletonPage(),
       builder: (context, data, reload) {
         final (row, moves) = data;
+        final days = DayGroups<StockMove>(moves.reversed.toList(), (m) => m.date);
         return Scaffold(
           appBar: AppBar(
-            title: Text(row.item.displayName),
             actions: [
               PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert_rounded),
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: 'edit', child: Text('Naam badlein')),
                   PopupMenuItem(value: 'archive', child: Text(row.archived ? 'Wapas laayein' : 'Archive karein')),
@@ -182,76 +215,78 @@ class _StockItemScreenState extends State<StockItemScreen> {
           ),
           body: RefreshIndicator(
             onRefresh: reload,
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: 24),
-              children: [
-                Card(
-                  margin: const EdgeInsets.all(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
+            child: ListView.builder(
+              padding: const EdgeInsets.only(bottom: 32),
+              itemCount: 3 + (days.rows.isEmpty ? 1 : days.rows.length),
+              itemBuilder: (context, i) {
+                if (i == 0) {
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(color: k.surface, borderRadius: BorderRadius.circular(24)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Haath mein'),
-                              Text(kg(row.weightKg),
-                                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: row.weightKg < 0 ? AppColors.pay : null,
-                                      )),
-                            ],
-                          ),
+                        Row(children: [
+                          RowIcon(Icons.checkroom_rounded,
+                              size: 52, color: primary, background: primary.withValues(alpha: 0.1)),
+                          const SizedBox(width: 14),
+                          Expanded(child: Text(row.item.displayName, style: Theme.of(context).textTheme.titleLarge)),
+                        ]),
+                        const SizedBox(height: 20),
+                        Text('Haath mein', style: Theme.of(context).textTheme.labelMedium),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(kg(row.weightKg),
+                              style: TextStyle(
+                                fontSize: 34,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.8,
+                                fontFeatures: tabular,
+                                color: row.weightKg < 0 ? k.dena : k.text,
+                              )),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(money(row.stockValue)),
-                            if (row.avgCost != null) Text('${money(row.avgCost!)}/kg ausat'),
-                          ],
+                        Text(
+                          [money(row.stockValue), if (row.avgCost != null) 'ausat ${money(row.avgCost!)}/kg'].join(' · '),
+                          style: TextStyle(color: k.muted, fontFeatures: tabular),
                         ),
+                        if (!row.archived) ...[
+                          const SizedBox(height: 20),
+                          Row(children: [
+                            ActionButton(
+                              icon: Icons.add_rounded,
+                              label: 'Stock aaya',
+                              color: k.ink,
+                              onTap: () => _open(StockAdjustmentScreen(item: row.item, incoming: true)),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _open(StockAdjustmentScreen(item: row.item, incoming: false)),
+                                icon: const Icon(Icons.remove_rounded, size: 20),
+                                label: const Text('Stock gaya'),
+                              ),
+                            ),
+                          ]),
+                        ],
                       ],
                     ),
-                  ),
-                ),
-                if (!row.archived)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: FilledButton.icon(
-                            style: FilledButton.styleFrom(backgroundColor: AppColors.receive),
-                            onPressed: () => _open(StockAdjustmentScreen(item: row.item, incoming: true)),
-                            icon: const Icon(Icons.add),
-                            label: const Text('Stock aaya'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton.icon(
-                            style: FilledButton.styleFrom(backgroundColor: AppColors.pay),
-                            onPressed: () => _open(StockAdjustmentScreen(item: row.item, incoming: false)),
-                            icon: const Icon(Icons.remove),
-                            label: const Text('Stock gaya'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: Text('Khareed aur farokht Sauday tab se darj hoti hain. '
-                      'Yahan baqi tabdeeli likhein: shuru ka stock, zaya, namoona, ginti ka farq.'),
-                ),
-                const SectionTitle('Stock register'),
-                if (moves.isEmpty)
-                  const EmptyState(icon: Icons.inventory_2_outlined, message: 'Abhi koi aamad ya nikasi nahi.')
-                else
-                  for (final m in moves.reversed)
-                    _MoveTile(move: m, onTap: () => _onMoveTap(m)),
-              ],
+                  );
+                }
+                if (i == 1) {
+                  return const FormHint(
+                    'Khareed aur farokht Sauday tab se darj hoti hain. '
+                    'Yahan baqi tabdeeli likhein: shuru ka stock, zaya, namoona, ginti ka farq.',
+                    margin: EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  );
+                }
+                if (i == 2) return const SectionTitle('Stock register');
+                if (days.rows.isEmpty) {
+                  return const EmptyState(icon: Icons.inventory_2_outlined, message: 'Abhi koi aamad ya nikasi nahi.');
+                }
+                return days.build(i - 3, (m) => _MoveTile(move: m, onTap: () => _onMoveTap(m)));
+              },
             ),
           ),
         );
@@ -275,23 +310,28 @@ class _MoveTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final k = KColors.of(context);
+    final primary = Theme.of(context).colorScheme.primary;
     final m = move;
     final incoming = m.weightKg >= 0;
+    final details = [if (m.rate != null) '@ ${plainNumber(m.rate!)}/kg', ?m.reason].join(' · ');
     return ListTile(
       onTap: onTap,
-      title: Text(stockMoveTitle(m)),
-      subtitle: Text([
-        formatDate(m.date),
-        if (m.rate != null) '@ ${plainNumber(m.rate!)}',
-        ?m.reason,
-      ].join(' · ')),
+      leading: RowIcon(
+        incoming ? Icons.south_west_rounded : Icons.north_east_rounded,
+        color: incoming ? primary : k.muted,
+        background: incoming ? primary.withValues(alpha: 0.1) : k.paper,
+      ),
+      title: Text(stockMoveTitle(m), maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: details.isEmpty ? null : Text(details, maxLines: 2, overflow: TextOverflow.ellipsis),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text('${incoming ? '+' : '−'} ${kg(m.weightKg.abs())}',
-              style: TextStyle(color: incoming ? AppColors.receive : AppColors.pay, fontWeight: FontWeight.w600)),
-          Text('Baqi ${kg(m.qtyAfter)}', style: Theme.of(context).textTheme.bodySmall),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, fontFeatures: tabular, color: k.text)),
+          Text('Baqi ${kg(m.qtyAfter)}',
+              style: TextStyle(fontSize: 12, color: m.qtyAfter < 0 ? k.dena : k.muted, fontFeatures: tabular)),
         ],
       ),
     );
@@ -419,7 +459,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
       saving: _saving,
       onSave: _save,
       children: [
-        const Text('Kyun?'),
+        const FieldLabel('Kyun?'),
         Wrap(
           spacing: 8,
           runSpacing: 4,
@@ -437,7 +477,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
             onChanged: (v) => _cost = v,
           )
         else
-          const Text('Yeh maal ausat laagat par nuqsan mein likha jayega.'),
+          const FormHint('Yeh maal ausat laagat par nuqsan mein likha jayega.'),
         DateField(value: _date, onChanged: (d) => setState(() => _date = d)),
         TextField(
           controller: _reason,

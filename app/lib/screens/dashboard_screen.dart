@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../data/models.dart';
 import '../l10n/khata_text.dart';
 import '../ui/common.dart';
+import '../ui/theme.dart';
 import '../util/format.dart';
 import 'home_screen.dart';
 import 'party_screen.dart';
@@ -28,8 +30,6 @@ class _Summary {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final _view = GlobalKey<AsyncViewState<_Summary>>();
-
   Future<_Summary> _load() async {
     final repo = Repo.of(context);
     final now = DateTime.now();
@@ -37,7 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       repo.partyBalances(),
       repo.profit(DateTime(now.year, now.month), now),
       repo.stockSummary(),
-      repo.recentLines(limit: 10),
+      repo.recentLines(limit: 8),
     ]);
     return _Summary(
       results[0] as List<PartyBalance>,
@@ -47,18 +47,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Future<void> _open(Widget screen) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
-    _view.currentState?.reload();
-  }
+  void _open(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 
   @override
   Widget build(BuildContext context) {
+    final k = KColors.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Khulasa'), actions: const [AccountMenuButton()]),
+      appBar: AppBar(
+        toolbarHeight: 68,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(DateFormat('EEEE, d MMMM').format(DateTime.now()),
+                style: TextStyle(fontSize: 13, color: k.muted, fontWeight: FontWeight.w600)),
+            const Text('Khulasa'),
+          ],
+        ),
+        actions: const [AccountMenuButton()],
+      ),
       body: AsyncView<_Summary>(
-        key: _view,
+        cacheKey: 'dashboard',
         load: _load,
+        skeleton: const SkeletonList(header: true, rows: 4),
         builder: (context, s, reload) {
           final active = s.balances.where((p) => !p.archived).toList();
           final debtors = active.where((p) => p.balance > 0).toList()..sort((a, b) => b.balance.compareTo(a.balance));
@@ -70,62 +80,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final stockValue = stock.fold<num>(0, (t, r) => t + r.stockValue);
           final profit = s.profit.netProfit;
 
-          Widget partyTile(PartyBalance p) => ListTile(
-                dense: true,
-                title: Text(p.name),
-                subtitle: Text([p.type.label, ?p.city].join(' · ')),
-                trailing: BalanceText(p.balance),
-                onTap: () => _open(PartyScreen(partyId: p.id)),
-              );
-
           return RefreshIndicator(
             onRefresh: reload,
             child: ListView(
-              padding: const EdgeInsets.only(bottom: 24),
+              padding: const EdgeInsets.only(bottom: 32),
               children: [
-                TotalsRow(toReceive: toReceive, toPay: toPay),
+                _Hero(toReceive: toReceive, toPay: toPay, debtors: debtors.length, creditors: creditors.length),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                   child: IntrinsicHeight(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _StatCard(
-                          label: 'Is mahine ka munafa',
-                          value: '${profit < 0 ? '− ' : ''}${money(profit)}',
-                          color: profit < 0 ? AppColors.pay : AppColors.receive,
-                          note: 'Tafseel dekhein ›',
+                        _Tile(
+                          icon: profit < 0 ? Icons.trending_down_rounded : Icons.trending_up_rounded,
+                          iconColor: k.forBalance(profit),
+                          label: profit < 0 ? 'Is mahine ka nuqsan' : 'Is mahine ka munafa',
+                          value: Amount(profit, color: k.forBalance(profit), size: 19, weight: FontWeight.w800),
+                          note: 'Tafseel',
                           onTap: () => _open(const ProfitScreen()),
                         ),
-                        _StatCard(label: 'Stock haath mein', value: kg(stockKg), note: money(stockValue)),
+                        const SizedBox(width: 12),
+                        _Tile(
+                          icon: Icons.inventory_2_outlined,
+                          iconColor: Theme.of(context).colorScheme.primary,
+                          label: 'Stock haath mein',
+                          value: Text(kg(stockKg),
+                              maxLines: 1,
+                              style: TextStyle(
+                                  fontSize: 19, fontWeight: FontWeight.w800, fontFeatures: tabular, color: k.text)),
+                          note: money(stockValue),
+                        ),
                       ],
                     ),
                   ),
                 ),
-                if (debtors.isNotEmpty) ...[
-                  const SectionTitle('Sab se zyada lena'),
-                  for (final p in debtors.take(5)) partyTile(p),
-                ],
-                if (creditors.isNotEmpty) ...[
-                  const SectionTitle('Sab se zyada dena'),
-                  for (final p in creditors.take(5)) partyTile(p),
-                ],
-                const SectionTitle('Taaza hisaab'),
+                if (debtors.isNotEmpty)
+                  Section(
+                    title: 'Sab se zyada lena',
+                    children: [
+                      for (final p in debtors.take(5)) PartyTile(party: p, onTap: () => _open(PartyScreen(partyId: p.id))),
+                    ],
+                  ),
+                if (creditors.isNotEmpty)
+                  Section(
+                    title: 'Sab se zyada dena',
+                    children: [
+                      for (final p in creditors.take(5))
+                        PartyTile(party: p, onTap: () => _open(PartyScreen(partyId: p.id))),
+                    ],
+                  ),
                 if (s.recent.isEmpty)
                   const EmptyState(icon: Icons.menu_book_outlined, message: 'Abhi koi entry nahi.')
                 else
-                  for (final l in s.recent)
-                    ListTile(
-                      dense: true,
-                      title: Text(l.partyName ?? lineTitle(l)),
-                      subtitle: Text('${lineTitle(l)} · ${formatShortDate(l.date)}'),
-                      trailing: Text(signedAmount(l.amount),
-                          style: TextStyle(
-                            color: l.amount >= 0 ? AppColors.receive : AppColors.pay,
-                            fontWeight: FontWeight.w600,
-                          )),
-                      onTap: l.partyId == null ? null : () => _open(PartyScreen(partyId: l.partyId!)),
-                    ),
+                  Section(
+                    title: 'Taaza hisaab',
+                    children: [
+                      for (final l in s.recent)
+                        ListTile(
+                          leading: LineIcon(kind: l.isReversal ? 'reversal' : l.kind, amount: l.amount),
+                          title: Text(l.partyName ?? lineTitle(l), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          subtitle: Text('${dayLabel(l.date)} · ${lineTitle(l)}',
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          trailing: Amount(l.amount, signed: true, color: k.forBalance(l.amount), size: 15),
+                          onTap: l.partyId == null ? null : () => _open(PartyScreen(partyId: l.partyId!)),
+                        ),
+                    ],
+                  ),
               ],
             ),
           );
@@ -135,33 +156,136 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-/// A small dashboard number card, styled like [TotalsRow].
-class _StatCard extends StatelessWidget {
-  const _StatCard({required this.label, required this.value, this.note, this.color, this.onTap});
+/// The one bold block in the app: everything owed both ways, as two numbers,
+/// a bar showing their weight against each other, and the net in plain words.
+class _Hero extends StatelessWidget {
+  const _Hero({required this.toReceive, required this.toPay, required this.debtors, required this.creditors});
 
+  final num toReceive;
+  final num toPay;
+  final int debtors;
+  final int creditors;
+
+  @override
+  Widget build(BuildContext context) {
+    final k = KColors.of(context);
+    final net = toReceive - toPay;
+    final total = toReceive + toPay;
+    final onInkMuted = k.onInk.withValues(alpha: 0.72);
+
+    Widget side(String label, num amount, int parties, Color dot, CrossAxisAlignment align) => Column(
+          crossAxisAlignment: align,
+          children: [
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Container(width: 8, height: 8, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
+              const SizedBox(width: 6),
+              Text(label, style: TextStyle(color: onInkMuted, fontWeight: FontWeight.w600, fontSize: 13.5)),
+            ]),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Amount(amount, color: k.onInk, size: 26, weight: FontWeight.w800),
+            ),
+            Text('$parties ${parties == 1 ? 'party' : 'parties'}', style: TextStyle(color: onInkMuted, fontSize: 12.5)),
+          ],
+        );
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+      decoration: BoxDecoration(color: k.ink, borderRadius: BorderRadius.circular(24)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: side('Kul lena', toReceive, debtors, k.lenaOnInk, CrossAxisAlignment.start)),
+              const SizedBox(width: 16),
+              Expanded(child: side('Kul dena', toPay, creditors, k.denaOnInk, CrossAxisAlignment.end)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: SizedBox(
+              height: 8,
+              child: total == 0
+                  ? ColoredBox(color: k.onInk.withValues(alpha: 0.18))
+                  : Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      if (toReceive > 0) Expanded(flex: _flex(toReceive, total), child: ColoredBox(color: k.lenaOnInk)),
+                      if (toReceive > 0 && toPay > 0) const SizedBox(width: 3),
+                      if (toPay > 0) Expanded(flex: _flex(toPay, total), child: ColoredBox(color: k.denaOnInk)),
+                    ]),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text.rich(
+            TextSpan(
+              style: TextStyle(color: onInkMuted, fontSize: 14.5, height: 1.3),
+              children: net == 0
+                  ? const [TextSpan(text: 'Kul mila kar hisaab barabar hai')]
+                  : [
+                      const TextSpan(text: 'Kul mila kar '),
+                      TextSpan(
+                        text: money(net),
+                        style: TextStyle(color: k.onInk, fontWeight: FontWeight.w800, fontFeatures: tabular),
+                      ),
+                      TextSpan(text: net > 0 ? ' lene hain' : ' dene hain'),
+                    ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Bar widths out of 1000, never so thin a side disappears.
+  static int _flex(num part, num total) => (part / total * 1000).round().clamp(20, 1000);
+}
+
+class _Tile extends StatelessWidget {
+  const _Tile({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+    required this.note,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final Color iconColor;
   final String label;
-  final String value;
-  final String? note;
-  final Color? color;
+  final Widget value;
+  final String note;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
+    final k = KColors.of(context);
     return Expanded(
-      child: Card(
+      child: Material(
+        color: k.surface,
+        borderRadius: BorderRadius.circular(18),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: text.labelMedium),
-                const SizedBox(height: 4),
-                Text(value, style: text.titleLarge?.copyWith(color: color, fontWeight: FontWeight.w600)),
-                if (note != null) Text(note!, style: text.bodySmall),
+                Row(children: [
+                  Icon(icon, size: 20, color: iconColor),
+                  const Spacer(),
+                  if (onTap != null) Icon(Icons.chevron_right_rounded, size: 20, color: k.muted),
+                ]),
+                const SizedBox(height: 10),
+                Text(label, style: Theme.of(context).textTheme.labelMedium),
+                const SizedBox(height: 2),
+                FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: value),
+                Text(note, style: TextStyle(fontSize: 12.5, color: k.muted, fontFeatures: tabular)),
               ],
             ),
           ),

@@ -8,6 +8,7 @@ WhatsApp bot always agree on every balance.
 
 | Tab | What it does |
 |---|---|
+| **Khulasa** | The day's summary: total to receive and to pay, this month's profit, stock in hand, the biggest balances and the latest entries. |
 | **Khata** | Every party with their balance (owes you / you owe), totals to receive and to pay, search and filters. A party's page shows the running statement, money received or paid, corrections and cancellations. |
 | **Deals** | Purchases, sales and commission deals. The form shows, before saving, how each party's khata will change. Deals can be edited (cancel and re-record) or cancelled. |
 | **Stock** | Kg in hand and value for each cloth type, using average cost. Opening stock and wastage adjustments. |
@@ -22,10 +23,25 @@ lib/
   data/models.dart         typed rows from tables, views and report functions
   data/deal_draft.dart     the deal form state, validation and khata preview
   data/ledger_repository.dart  every Supabase read and RPC call
-  ui/common.dart           shared widgets: async loading, pickers, dialogs
+  ui/theme.dart            colours, type and component styles (light and dark)
+  ui/common.dart           shared widgets: cached loading, skeletons, rows, pickers, dialogs
   screens/                 one file per screen
 test/                      unit tests
 ```
+
+## Design and speed
+
+- **One accent colour.** Indigo is the brand; green and red appear only where
+  they mean money to receive or to pay. Figtree with tabular figures keeps
+  amounts lined up. Light and dark themes follow the phone.
+- **Instant screens.** Every screen keeps its last result in memory and shows
+  it at once, refreshing quietly in the background. First loads show skeleton
+  rows instead of a spinner.
+- **Live updates.** The app listens to Supabase Realtime, so an entry sent on
+  WhatsApp appears on an open screen within a second. Hidden tabs refresh when
+  they are next shown, and the app refreshes when it comes back to the front.
+- **Kept-alive tabs.** Switching tabs does not rebuild or reload them; long
+  lists are built lazily.
 
 Mistakes are never edited in place. Cancelling a deal, payment or expense adds
 reversing lines, so the statement keeps a full history.

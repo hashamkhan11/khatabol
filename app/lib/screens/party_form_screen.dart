@@ -120,7 +120,7 @@ class _PartyFormScreenState extends State<PartyFormScreen> {
           decoration: const InputDecoration(labelText: 'Note (agar ho)'),
         ),
         if (!_editing) ...[
-          const Text('Purana hisaab (is app se pehle ka khata)'),
+          const FieldLabel('Purana hisaab (is app se pehle ka khata)'),
           SegmentedButton<_Opening>(
             segments: const [
               ButtonSegment(value: _Opening.none, label: Text('Koi nahi')),

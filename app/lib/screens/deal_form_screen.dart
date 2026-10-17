@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/deal_draft.dart';
 import '../data/models.dart';
 import '../ui/common.dart';
+import '../ui/theme.dart';
 import '../util/format.dart';
 
 /// Records a new purchase, sale or commission deal, or edits one.
@@ -20,7 +21,9 @@ class DealFormScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final repo = Repo.of(context);
     return AsyncView<(List<Party>, List<Item>)>(
-      load: () async => (await repo.activeParties(), await repo.activeItems()),
+      cacheKey: 'deal-form',
+      skeleton: const SkeletonPage(),
+      load: () async => await (repo.activeParties(), repo.activeItems()).wait,
       builder: (context, data, _) => _DealForm(
         draft: initial ?? _newDraft(),
         editing: editing,
@@ -397,9 +400,9 @@ class _Preview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.06),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -413,7 +416,7 @@ class _Preview extends StatelessWidget {
                   e.value > 0
                       ? '${nameOf(e.key)} se ${money(e.value)} mazeed lena'
                       : '${nameOf(e.key)} ko ${money(e.value)} mazeed dena',
-                  style: TextStyle(color: balanceColor(e.value)),
+                  style: TextStyle(color: KColors.of(context).forBalance(e.value)),
                 ),
               ),
           ],

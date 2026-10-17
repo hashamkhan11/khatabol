@@ -2,16 +2,37 @@ import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../ui/common.dart';
-import '../util/format.dart';
+import '../ui/theme.dart';
 import 'deal_form_screen.dart';
 import 'deal_screen.dart';
 import 'home_screen.dart';
 
 IconData dealIcon(DealKind kind) => switch (kind) {
-      DealKind.purchase => Icons.south_west,
-      DealKind.sale => Icons.north_east,
+      DealKind.purchase => Icons.move_to_inbox_rounded,
+      DealKind.sale => Icons.local_shipping_outlined,
       DealKind.commission => Icons.handshake_outlined,
     };
+
+/// A deal kind's icon on a soft ink badge.
+class DealIcon extends StatelessWidget {
+  const DealIcon(this.kind, {super.key, this.cancelled = false, this.size = 40});
+
+  final DealKind kind;
+  final bool cancelled;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final k = KColors.of(context);
+    final primary = Theme.of(context).colorScheme.primary;
+    return RowIcon(
+      dealIcon(kind),
+      size: size,
+      color: cancelled ? k.muted : primary,
+      background: cancelled ? k.paper : primary.withValues(alpha: 0.1),
+    );
+  }
+}
 
 /// The Sauday tab: purchases, sales and commission deals, newest first.
 class DealsScreen extends StatefulWidget {
@@ -22,46 +43,40 @@ class DealsScreen extends StatefulWidget {
 }
 
 class _DealsScreenState extends State<DealsScreen> {
-  final _view = GlobalKey<AsyncViewState<List<Deal>>>();
   DealKind? _kind;
   bool _showCancelled = false;
 
-  Future<void> _open(Widget screen) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
-    _view.currentState?.reload();
-  }
+  void _open(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 
   Future<void> _newDeal() async {
+    Widget option(DealKind kind, String hint) => ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+          leading: DealIcon(kind, size: 44),
+          title: Text(kind.label),
+          subtitle: Text(hint),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => Navigator.pop(context, kind),
+        );
     final kind = await showModalBottomSheet<DealKind>(
       context: context,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(padding: EdgeInsets.all(16), child: Text('Naya sauda')),
-            ListTile(
-              leading: Icon(dealIcon(DealKind.purchase)),
-              title: Text(DealKind.purchase.label),
-              subtitle: const Text('Aap ne maal khareeda'),
-              onTap: () => Navigator.pop(context, DealKind.purchase),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              child: Text('Naya sauda', style: Theme.of(context).textTheme.titleLarge),
             ),
-            ListTile(
-              leading: Icon(dealIcon(DealKind.sale)),
-              title: Text(DealKind.sale.label),
-              subtitle: const Text('Aap ne maal becha'),
-              onTap: () => Navigator.pop(context, DealKind.sale),
-            ),
-            ListTile(
-              leading: Icon(dealIcon(DealKind.commission)),
-              title: Text(DealKind.commission.label),
-              subtitle: const Text('Aap ne bechne aur khareedne wale ka sauda karwaya'),
-              onTap: () => Navigator.pop(context, DealKind.commission),
-            ),
+            option(DealKind.purchase, 'Aap ne maal khareeda'),
+            option(DealKind.sale, 'Aap ne maal becha'),
+            option(DealKind.commission, 'Aap ne bechne aur khareedne wale ka sauda karwaya'),
+            const SizedBox(height: 12),
           ],
         ),
       ),
     );
-    if (kind != null) await _open(DealFormScreen(kind: kind));
+    if (kind != null) _open(DealFormScreen(kind: kind));
   }
 
   @override
@@ -73,7 +88,7 @@ class _DealsScreenState extends State<DealsScreen> {
         actions: [
           IconButton(
             tooltip: _showCancelled ? 'Cancel shuda chhupayein' : 'Cancel shuda dikhayein',
-            icon: Icon(_showCancelled ? Icons.visibility : Icons.visibility_off_outlined),
+            icon: Icon(_showCancelled ? Icons.visibility_rounded : Icons.visibility_off_outlined),
             onPressed: () => setState(() => _showCancelled = !_showCancelled),
           ),
           const AccountMenuButton(),
@@ -81,49 +96,38 @@ class _DealsScreenState extends State<DealsScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _newDeal,
-        icon: const Icon(Icons.add),
+        icon: const Icon(Icons.add_rounded),
         label: const Text('Naya sauda'),
       ),
       body: Column(
         children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: Row(
-              children: [
-                for (final k in <DealKind?>[null, ...DealKind.values])
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(k?.label ?? 'Sab'),
-                      selected: _kind == k,
-                      onSelected: (_) {
-                        setState(() => _kind = k);
-                        _view.currentState?.reload();
-                      },
-                    ),
-                  ),
-              ],
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 4),
+            child: FilterChips<DealKind?>(
+              options: [(null, 'Sab'), for (final k in DealKind.values) (k, k.label)],
+              selected: _kind,
+              onSelected: (k) => setState(() => _kind = k),
             ),
           ),
           Expanded(
             child: AsyncView<List<Deal>>(
-              key: _view,
+              cacheKey: 'deals:${_kind?.name ?? 'all'}',
               load: () => repo.deals(kind: _kind),
               builder: (context, all, reload) {
                 final list = all.where((d) => _showCancelled || !d.cancelled).toList();
+                final days = DayGroups<Deal>(list, (d) => d.date);
                 return RefreshIndicator(
                   onRefresh: reload,
                   child: list.isEmpty
                       ? ListView(children: const [
-                          EmptyState(icon: Icons.swap_horiz, message: 'Abhi koi sauda nahi.\n“Naya sauda” dabayein.'),
+                          EmptyState(icon: Icons.swap_horiz_rounded, message: 'Abhi koi sauda nahi.\n“Naya sauda” dabayein.'),
                         ])
                       : ListView.builder(
-                          padding: const EdgeInsets.only(bottom: 88),
-                          itemCount: list.length,
-                          itemBuilder: (context, i) => DealTile(
-                            deal: list[i],
-                            onTap: () => _open(DealScreen(dealId: list[i].id)),
+                          padding: const EdgeInsets.only(bottom: 96),
+                          itemCount: days.rows.length,
+                          itemBuilder: (context, i) => days.build(
+                            i,
+                            (d) => DealTile(deal: d, onTap: () => _open(DealScreen(dealId: d.id))),
                           ),
                         ),
                 );
@@ -144,18 +148,21 @@ class DealTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final k = KColors.of(context);
     final d = deal;
-    final cancelled = d.cancelled ? const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.grey) : null;
     final amount = d.kind == DealKind.commission ? d.commissionTotal : d.goodsAmount;
     return ListTile(
       onTap: onTap,
-      leading: CircleAvatar(child: Icon(dealIcon(d.kind), size: 20)),
-      title: Text(d.title, style: cancelled),
-      subtitle: Text(
-        [formatShortDate(d.date), d.kind.label, if (d.summary.isNotEmpty) d.summary, if (d.cancelled) 'Cancel shuda']
-            .join(' · '),
-      ),
-      trailing: amount == null ? null : Text(money(amount), style: cancelled ?? const TextStyle(fontWeight: FontWeight.w600)),
+      leading: DealIcon(d.kind, cancelled: d.cancelled),
+      title: Text(d.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: d.cancelled ? TextStyle(decoration: TextDecoration.lineThrough, color: k.muted) : null),
+      subtitle: Text([d.kind.label, if (d.summary.isNotEmpty) d.summary].join(' · '),
+          maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: d.cancelled
+          ? Tag('Cancel', color: k.dena)
+          : (amount == null ? null : Amount(amount, size: 15)),
     );
   }
 }
