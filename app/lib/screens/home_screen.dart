@@ -12,7 +12,7 @@ import 'stock_screen.dart';
 import '../l10n/lang.dart';
 
 /// The five tabs. Each tab stays alive while another is shown, so switching
-/// is instant; a tab that missed a change refreshes when it is shown again.
+/// is instant; a tab refreshes quietly each time it is shown again.
 /// Changes made elsewhere (the WhatsApp bot) arrive live while the app is open,
 /// and everything refreshes when the app comes back to the front.
 class HomeScreen extends StatefulWidget {
@@ -138,7 +138,7 @@ class AccountMenuButton extends StatelessWidget {
           if (v != 'out') return;
           final repo = Repo.of(context);
           if (await confirm(context, title: tr('Sign out karna hai?', 'Sign out?'), action: 'Sign out')) {
-            await repo.stopLive();
+            await repo.stopLive(all: true);
             // The next person to sign in on this phone must not see this khata.
             repo.clearCache();
             await auth.signOut();

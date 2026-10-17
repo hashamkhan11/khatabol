@@ -96,7 +96,8 @@ String dayLabel(DateTime d) {
 /// With a [cacheKey] the last result is remembered: opening the screen again
 /// shows it at once while fresh data loads quietly. The view also refreshes
 /// by itself after any change to the khata (see [LedgerRepository.changes]);
-/// a view that is not on screen waits until it is shown.
+/// a view that is not on screen skips changes, and refreshes quietly whenever
+/// it comes into view (a tab switch, or back from a page on top).
 /// Call [AsyncViewState.reload] (via a GlobalKey) to refresh by hand.
 class AsyncView<T> extends StatefulWidget {
   const AsyncView({super.key, required this.load, required this.builder, this.cacheKey, this.skeleton});
@@ -119,7 +120,6 @@ class AsyncViewState<T> extends State<AsyncView<T>> {
   Object? _error;
   int _ticket = 0;
   bool _visible = true;
-  bool _stale = false;
 
   @override
   void initState() {
@@ -133,8 +133,12 @@ class AsyncViewState<T> extends State<AsyncView<T>> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _visible = TickerMode.of(context);
-    if (_visible && _stale) _fetch();
+    // Coming into view (a tab switch, or back from a page on top): refresh
+    // quietly, so a screen never shows something older than the one before it.
+    final visible = TickerMode.of(context);
+    final shown = visible && !_visible;
+    _visible = visible;
+    if (shown) _fetch();
   }
 
   @override
@@ -163,20 +167,15 @@ class AsyncViewState<T> extends State<AsyncView<T>> {
     }
   }
 
+  // Hidden screens skip this; they refresh when shown.
   void _onChanged() {
-    if (!mounted) return;
-    if (_visible) {
-      _fetch();
-    } else {
-      _stale = true;
-    }
+    if (mounted && _visible) _fetch();
   }
 
   Future<void> reload() => _fetch();
 
   Future<void> _fetch() async {
     final ticket = ++_ticket;
-    _stale = false;
     try {
       final value = await widget.load();
       if (!mounted || ticket != _ticket) return;

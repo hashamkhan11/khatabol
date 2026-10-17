@@ -40,11 +40,16 @@ class LedgerRepository {
 
   RealtimeChannel? _live;
   Timer? _liveDebounce;
+  int _liveUsers = 0;
 
   /// Listens for rows changed outside the app (the WhatsApp bot), so open
   /// screens update by themselves. Row-level security limits the events to
   /// the signed-in user's own rows.
+  ///
+  /// Counted: a new home screen (after a language switch) starts before the
+  /// old one stops, and the channel must outlive the old one.
   void startLive() {
+    _liveUsers++;
     if (_live != null) return;
     final channel = _db.channel('khata-live');
     for (final table in const ['khata_entries', 'deals', 'expenses', 'stock_adjustments', 'parties', 'items']) {
@@ -62,7 +67,11 @@ class LedgerRepository {
     _live = channel..subscribe();
   }
 
-  Future<void> stopLive() async {
+  /// [all] closes the channel whoever started it, e.g. on sign out.
+  Future<void> stopLive({bool all = false}) async {
+    if (_liveUsers > 0) _liveUsers--;
+    if (all) _liveUsers = 0;
+    if (_liveUsers > 0) return;
     _liveDebounce?.cancel();
     final channel = _live;
     _live = null;
