@@ -1,5 +1,7 @@
 # KhataBol
 
+![KhataBol: a WhatsApp message is read back, confirmed with "Haan", saved, and shown live in the app](docs/banner.png)
+
 [![CI](https://github.com/hashamkhan11/khatabol/actions/workflows/ci.yml/badge.svg)](https://github.com/hashamkhan11/khatabol/actions/workflows/ci.yml)
 ![Flutter](https://img.shields.io/badge/Flutter-3.38-02569B?logo=flutter&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres-3FCF8E?logo=supabase&logoColor=white)
