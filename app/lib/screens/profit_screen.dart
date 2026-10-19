@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../ui/common.dart';
+import '../ui/icons.dart';
 import '../ui/theme.dart';
 import '../util/format.dart';
 import '../l10n/lang.dart';
@@ -87,19 +88,17 @@ class _ProfitScreenState extends State<ProfitScreen> {
                   child: ListView(
                     padding: const EdgeInsets.only(bottom: 32),
                     children: [
-                      Container(
+                      InkCard(
                         margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(color: k.surface, borderRadius: BorderRadius.circular(24)),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
                                 RowIcon(
-                                  net >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                                  color: net >= 0 ? k.lena : k.dena,
-                                  background: net >= 0 ? k.lenaSoft : k.denaSoft,
+                                  net >= 0 ? KIcons.profitUp : KIcons.profitDown,
+                                  color: net >= 0 ? k.lenaOnInk : k.denaOnInk,
+                                  background: k.onInk.withValues(alpha: 0.12),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -107,9 +106,9 @@ class _ProfitScreenState extends State<ProfitScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(net >= 0 ? tr('Khalis munafa', 'Net profit') : tr('Khalis nuqsan', 'Net loss'),
-                                          style: Theme.of(context).textTheme.titleSmall),
+                                          style: Theme.of(context).textTheme.titleSmall?.copyWith(color: k.onInk)),
                                       Text('${formatDate(_dates.start)} – ${formatDate(_dates.end)}',
-                                          style: TextStyle(color: k.muted, fontSize: 13, fontFeatures: tabular)),
+                                          style: TextStyle(color: k.onInk.withValues(alpha: 0.72), fontSize: 13, fontFeatures: tabular)),
                                     ],
                                   ),
                                 ),
@@ -119,7 +118,7 @@ class _ProfitScreenState extends State<ProfitScreen> {
                             FittedBox(
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.centerLeft,
-                              child: Amount(net.abs(), size: 36, weight: FontWeight.w800, color: net >= 0 ? k.lena : k.dena),
+                              child: Amount(net.abs(), size: 36, weight: FontWeight.w800, color: net >= 0 ? k.lenaOnInk : k.denaOnInk),
                             ),
                           ],
                         ),

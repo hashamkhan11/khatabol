@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../ui/common.dart';
+import '../ui/icons.dart';
 import '../ui/theme.dart';
 import 'deal_form_screen.dart';
 import 'deal_screen.dart';
@@ -9,9 +10,9 @@ import 'home_screen.dart';
 import '../l10n/lang.dart';
 
 IconData dealIcon(DealKind kind) => switch (kind) {
-      DealKind.purchase => Icons.move_to_inbox_rounded,
-      DealKind.sale => Icons.local_shipping_outlined,
-      DealKind.commission => Icons.handshake_outlined,
+      DealKind.purchase => KIcons.purchase,
+      DealKind.sale => KIcons.sale,
+      DealKind.commission => KIcons.commission,
     };
 
 /// A deal kind's icon on a soft ink badge.
@@ -51,29 +52,34 @@ class _DealsScreenState extends State<DealsScreen> {
 
   Future<void> _newDeal() async {
     Widget option(DealKind kind, String hint) => ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           leading: DealIcon(kind, size: 44),
-          title: Text(kind.label),
+          title: Text(kind.label, style: const TextStyle(fontWeight: FontWeight.w700)),
           subtitle: Text(hint),
-          trailing: const Icon(Icons.chevron_right_rounded),
+          trailing: Icon(KIcons.chevronRight, size: 18, color: KColors.of(context).muted),
           onTap: () => Navigator.pop(context, kind),
         );
     final kind = await showModalBottomSheet<DealKind>(
       context: context,
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-              child: Text(tr('Naya sauda', 'New deal'), style: Theme.of(context).textTheme.titleLarge),
-            ),
-            option(DealKind.purchase, tr('Aap ne maal khareeda', 'You bought goods')),
-            option(DealKind.sale, tr('Aap ne maal becha', 'You sold goods')),
-            option(DealKind.commission, tr('Aap ne bechne aur khareedne wale ka sauda karwaya', 'You arranged a deal between a seller and a buyer')),
-            const SizedBox(height: 12),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                child: Text(tr('Naya sauda', 'New deal'), style: Theme.of(context).textTheme.titleLarge),
+              ),
+              SheetGroup(children: [
+                option(DealKind.purchase, tr('Aap ne maal khareeda', 'You bought goods')),
+                option(DealKind.sale, tr('Aap ne maal becha', 'You sold goods')),
+                option(DealKind.commission,
+                    tr('Aap ne bechne aur khareedne wale ka sauda karwaya', 'You arranged a deal between a seller and a buyer')),
+              ]),
+            ],
+          ),
         ),
       ),
     );
@@ -89,7 +95,7 @@ class _DealsScreenState extends State<DealsScreen> {
         actions: [
           ToggleAction(
             label: tr('Cancel shuda', 'Cancelled'),
-            icon: Icons.block_rounded,
+            icon: KIcons.cancelled,
             on: _showCancelled,
             onChanged: (v) => setState(() => _showCancelled = v),
           ),
@@ -98,7 +104,7 @@ class _DealsScreenState extends State<DealsScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _newDeal,
-        icon: const Icon(Icons.add_rounded),
+        icon: const Icon(KIcons.add),
         label: Text(tr('Naya sauda', 'New deal')),
       ),
       body: Column(
@@ -122,7 +128,7 @@ class _DealsScreenState extends State<DealsScreen> {
                   onRefresh: reload,
                   child: list.isEmpty
                       ? ListView(children: [
-                          EmptyState(icon: Icons.swap_horiz_rounded, message: tr('Abhi koi sauda nahi.\n“Naya sauda” dabayein.', 'No deals yet.\nTap “New deal”.')),
+                          EmptyState(icon: KIcons.deals, message: tr('Abhi koi sauda nahi.\n“Naya sauda” dabayein.', 'No deals yet.\nTap “New deal”.')),
                         ])
                       : ListView.builder(
                           padding: const EdgeInsets.only(bottom: 96),

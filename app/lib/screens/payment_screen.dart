@@ -91,21 +91,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   'Rate dropped or goods returned? Open the deal and tap "Edit", '
                   'so profit and stock stay right too.')),
         if (widget.mode == PaymentMode.adjustment)
-          SegmentedButton<bool>(
-            segments: [
-              ButtonSegment(value: true, label: Text(tr('$name se lena barhe', 'More to receive from $name'))),
-              ButtonSegment(value: false, label: Text(tr('Mera dena barhe', 'More for me to pay'))),
+          Segments<bool>(
+            options: [
+              (true, tr('$name se lena barhe', 'More to receive from $name')),
+              (false, tr('Mera dena barhe', 'More for me to pay')),
             ],
-            selected: {_owesMore},
-            onSelectionChanged: (s) => setState(() => _owesMore = s.first),
+            selected: _owesMore,
+            onChanged: (v) => setState(() => _owesMore = v),
           ),
         NumberField(label: tr('Raqam', 'Amount'), suffix: 'Rs', autofocus: true, onChanged: (v) => _amount = v),
         DateField(value: _date, onChanged: (d) => setState(() => _date = d)),
         if (widget.mode != PaymentMode.adjustment)
-          SegmentedButton<PaymentMethod>(
-            segments: [for (final m in PaymentMethod.values) ButtonSegment(value: m, label: Text(m.label))],
-            selected: {_method},
-            onSelectionChanged: (s) => setState(() => _method = s.first),
+          Segments<PaymentMethod>(
+            options: [for (final m in PaymentMethod.values) (m, m.label)],
+            selected: _method,
+            onChanged: (m) => setState(() => _method = m),
           ),
         TextField(
           controller: _note,

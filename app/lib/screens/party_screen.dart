@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/models.dart';
 import '../l10n/khata_text.dart';
 import '../ui/common.dart';
+import '../ui/icons.dart';
 import '../ui/theme.dart';
 import '../util/format.dart';
 import 'deal_screen.dart';
@@ -72,6 +73,8 @@ class _PartyScreenState extends State<PartyScreen> {
       title: archive ? tr('${p.name} ko archive karna hai?', 'Archive ${p.name}?') : tr('${p.name} ko wapas laana hai?', 'Restore ${p.name}?'),
       message: archive ? tr('Khata mehfooz rahega, lekin nayi entry nahi ho sakegi.', 'The ledger is kept, but no new entries can be made.') : null,
       action: archive ? 'Archive' : tr('Wapas laayein', 'Restore'),
+      icon: KIcons.archive,
+      danger: archive,
     );
     if (!ok || !mounted) return;
     try {
@@ -93,16 +96,18 @@ class _PartyScreenState extends State<PartyScreen> {
         return Scaffold(
           appBar: AppBar(
             actions: [
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert_rounded),
-                itemBuilder: (_) => [
-                  PopupMenuItem(value: 'edit', child: Text(tr('Tafseel badlein', 'Edit details'))),
-                  CheckedPopupMenuItem(
-                      value: 'cancelled', checked: _includeCancelled, child: Text(tr('Cancel shuda lines', 'Cancelled lines'))),
-                  PopupMenuItem(value: 'adjust', child: Text(tr('Durusti', 'Correction'))),
-                  PopupMenuItem(value: 'archive', child: Text(p.archived ? tr('Party wapas laayein', 'Restore party') : tr('Party archive karein', 'Archive party'))),
-                ],
-                onSelected: (v) {
+              IconButton(
+                tooltip: tr('Aur', 'More'),
+                icon: const Icon(KIcons.more),
+                onPressed: () async {
+                  final v = await showActions<String>(context, title: p.name, actions: [
+                    SheetAction('edit', tr('Tafseel badlein', 'Edit details'), KIcons.edit),
+                    SheetAction('adjust', tr('Durusti', 'Correction'), KIcons.adjustment),
+                    SheetAction('cancelled', tr('Cancel shuda lines dikhayein', 'Show cancelled lines'), KIcons.cancelled,
+                        checked: _includeCancelled),
+                    SheetAction('archive', p.archived ? tr('Party wapas laayein', 'Restore party') : tr('Party archive karein', 'Archive party'),
+                        KIcons.archive, danger: !p.archived),
+                  ]);
                   switch (v) {
                     case 'edit':
                       _open(PartyFormScreen(party: p));
@@ -115,6 +120,7 @@ class _PartyScreenState extends State<PartyScreen> {
                   }
                 },
               ),
+              const SizedBox(width: 4),
             ],
           ),
           body: RefreshIndicator(
@@ -136,7 +142,7 @@ class _PartyScreenState extends State<PartyScreen> {
                       style: Theme.of(context).textTheme.labelMedium));
                 }
                 if (days.rows.isEmpty) {
-                  return EmptyState(icon: Icons.menu_book_outlined, message: tr('Abhi koi entry nahi.', 'No entries yet.'));
+                  return EmptyState(icon: KIcons.ledger, message: tr('Abhi koi entry nahi.', 'No entries yet.'));
                 }
                 return days.build(i - 2, (line) => _LineTile(line: line, onTap: () => _onLineTap(line)));
               },
@@ -160,33 +166,31 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final k = KColors.of(context);
     final p = party;
-    final color = k.forBalance(balance);
-    return Container(
+    final color = k.onInkForBalance(balance);
+    final muted = k.onInk.withValues(alpha: 0.72);
+    return InkCard(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: k.surface, borderRadius: BorderRadius.circular(24)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              PartyAvatar(name: p.name, balance: balance, size: 52),
+              PartyAvatar(name: p.name, size: 52, onInk: true),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(p.name, style: Theme.of(context).textTheme.titleLarge),
+                    Text(p.name, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: k.onInk, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 2),
-                    Text([p.type.label, ?p.city, ?p.phone].join(' · '),
-                        style: TextStyle(color: k.muted, fontSize: 13.5)),
+                    Text([p.type.label, ?p.city, ?p.phone].join(' · '), style: TextStyle(color: muted, fontSize: 13.5)),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          Text(tr('Baqaya', 'Balance'), style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: 22),
+          Text(tr('Baqaya', 'Balance'), style: TextStyle(color: muted, fontWeight: FontWeight.w600, fontSize: 13.5)),
           const SizedBox(height: 2),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -195,23 +199,24 @@ class _Header extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Amount(balance, color: color, size: 34, weight: FontWeight.w800),
+                  child: Amount(balance, color: balance == 0 ? k.onInk : color, size: 34, weight: FontWeight.w800),
                 ),
               ),
               const SizedBox(width: 10),
-              Tag(balanceLabel(balance), color: color),
+              Tag(balanceLabel(balance), color: balance == 0 ? k.onInk : color),
             ],
           ),
           if (p.archived) ...[
-            const SizedBox(height: 12),
-            Tag(tr('Archive shuda: nayi entry nahi ho sakti', 'Archived: no new entries'), color: k.dena),
+            const SizedBox(height: 14),
+            Tag(tr('Archive shuda: nayi entry nahi ho sakti', 'Archived: no new entries'), color: k.denaOnInk),
           ] else ...[
             const SizedBox(height: 20),
             Row(
               children: [
-                ActionButton(icon: Icons.south_west_rounded, label: tr('Paise mile', 'Received'), color: k.lena, onTap: onReceived),
+                ActionButton(
+                    icon: KIcons.received, label: tr('Paise mile', 'Received'), color: k.lenaOnInk, foreground: k.ink, onTap: onReceived),
                 const SizedBox(width: 12),
-                ActionButton(icon: Icons.north_east_rounded, label: tr('Paise diye', 'Paid'), color: k.dena, onTap: onPaid),
+                ActionButton(icon: KIcons.paid, label: tr('Paise diye', 'Paid'), color: k.denaOnInk, foreground: k.ink, onTap: onPaid),
               ],
             ),
           ],

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../ui/common.dart';
+import '../ui/icons.dart';
 import '../ui/theme.dart';
 import '../l10n/lang.dart';
+import 'forgot_password_screen.dart';
 
 /// Email and password sign-in. There is no sign-up: the account is created
 /// by the owner in the Supabase dashboard, so strangers cannot register.
@@ -100,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     textInputAction: TextInputAction.next,
                                     decoration: const InputDecoration(
                                       labelText: 'Email',
-                                      prefixIcon: Icon(Icons.mail_outline_rounded),
+                                      prefixIcon: Icon(KIcons.email, size: 20),
                                     ),
                                   ),
                                   const SizedBox(height: 14),
@@ -112,20 +114,35 @@ class _LoginScreenState extends State<LoginScreen> {
                                     onSubmitted: (_) => _signIn(),
                                     decoration: InputDecoration(
                                       labelText: 'Password',
-                                      prefixIcon: const Icon(Icons.lock_outline_rounded),
+                                      prefixIcon: const Icon(KIcons.lock, size: 20),
                                       suffixIcon: IconButton(
-                                        icon: Icon(_hidePassword ? Icons.visibility_rounded : Icons.visibility_off_rounded),
+                                        tooltip: _hidePassword ? tr('Dikhayein', 'Show') : tr('Chhupayein', 'Hide'),
+                                        icon: Icon(_hidePassword ? KIcons.show : KIcons.hide, size: 20),
                                         onPressed: () => setState(() => _hidePassword = !_hidePassword),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 24),
-                                  FilledButton(
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: _busy
+                                          ? null
+                                          : () => Navigator.push(
+                                                context,
+                                                MaterialPageRoute<void>(
+                                                    builder: (_) => ForgotPasswordScreen(email: _email.text.trim())),
+                                              ),
+                                      child: Text(tr('Password bhool gaye?', 'Forgot password?')),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  FilledButton.icon(
                                     onPressed: _busy ? null : _signIn,
                                     style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(54)),
-                                    child: _busy
-                                        ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.4))
-                                        : const Text('Sign in'),
+                                    icon: _busy
+                                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2.4))
+                                        : const Icon(KIcons.signIn, size: 18),
+                                    label: const Text('Sign in'),
                                   ),
                                 ],
                               ),

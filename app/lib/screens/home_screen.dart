@@ -3,7 +3,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/ledger_repository.dart';
 import '../ui/common.dart';
+import '../ui/icons.dart';
 import '../ui/theme.dart';
+import 'account_sheet.dart';
 import 'dashboard_screen.dart';
 import 'deals_screen.dart';
 import 'expenses_screen.dart';
@@ -72,19 +74,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           onDestinationSelected: (i) => setState(() => _tab = i),
           destinations: [
             NavigationDestination(
-                icon: Icon(Icons.space_dashboard_outlined),
-                selectedIcon: Icon(Icons.space_dashboard_rounded),
-                label: tr('Khulasa', 'Summary')),
+                icon: const Icon(KIcons.summary), selectedIcon: const Icon(KIcons.summaryOn), label: tr('Khulasa', 'Summary')),
             NavigationDestination(
-                icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book_rounded), label: tr('Khata', 'Parties')),
+                icon: const Icon(KIcons.parties), selectedIcon: const Icon(KIcons.partiesOn), label: tr('Khata', 'Parties')),
             NavigationDestination(
-                icon: Icon(Icons.swap_horiz_rounded), selectedIcon: Icon(Icons.swap_horiz_rounded), label: tr('Sauday', 'Deals')),
+                icon: const Icon(KIcons.deals), selectedIcon: const Icon(KIcons.dealsOn), label: tr('Sauday', 'Deals')),
+            const NavigationDestination(icon: Icon(KIcons.stock), selectedIcon: Icon(KIcons.stockOn), label: 'Stock'),
             NavigationDestination(
-                icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2_rounded), label: 'Stock'),
-            NavigationDestination(
-                icon: Icon(Icons.receipt_long_outlined),
-                selectedIcon: Icon(Icons.receipt_long_rounded),
-                label: tr('Kharchay', 'Expenses')),
+                icon: const Icon(KIcons.expenses), selectedIcon: const Icon(KIcons.expensesOn), label: tr('Kharchay', 'Expenses')),
           ],
         ),
       ),
@@ -92,58 +89,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 }
 
-/// App bar button with the signed-in account, the language switch and sign out.
+/// App bar button with the signed-in account; opens the account sheet.
 class AccountMenuButton extends StatelessWidget {
   const AccountMenuButton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final auth = Supabase.instance.client.auth;
-    final email = auth.currentUser?.email ?? '';
-    final k = KColors.of(context);
+    final email = Supabase.instance.client.auth.currentUser?.email ?? '';
     return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: PopupMenuButton<String>(
-        tooltip: 'Account',
-        offset: const Offset(0, 48),
-        icon: CircleAvatar(
-          radius: 17,
-          backgroundColor: k.ink,
-          child: Text(email.isEmpty ? '?' : email[0].toUpperCase(),
-              style: TextStyle(color: k.onInk, fontWeight: FontWeight.w800, fontSize: 15)),
+      padding: const EdgeInsets.only(right: 16),
+      child: Tooltip(
+        message: tr('Account', 'Account'),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(13),
+          onTap: () => showAccountSheet(context),
+          child: AccountAvatar(email: email, size: 38),
         ),
-        itemBuilder: (_) => [
-          PopupMenuItem(enabled: false, child: Text(email, style: TextStyle(color: k.muted, fontSize: 14))),
-          const PopupMenuDivider(),
-          PopupMenuItem(
-            enabled: false,
-            height: 32,
-            child: Text(tr('Zubaan', 'Language'), style: TextStyle(color: k.muted, fontSize: 13)),
-          ),
-          for (final lang in AppLang.values)
-            CheckedPopupMenuItem(value: lang.code, checked: appLang.value == lang, child: Text(lang.label)),
-          const PopupMenuDivider(),
-          PopupMenuItem(
-            value: 'out',
-            child: Row(children: [
-              const Icon(Icons.logout_rounded, size: 20),
-              const SizedBox(width: 12),
-              Text(tr('Sign out karein', 'Sign out')),
-            ]),
-          ),
-        ],
-        onSelected: (v) async {
-          final lang = AppLang.values.where((l) => l.code == v).firstOrNull;
-          if (lang != null) return setLang(lang);
-          if (v != 'out') return;
-          final repo = Repo.of(context);
-          if (await confirm(context, title: tr('Sign out karna hai?', 'Sign out?'), action: 'Sign out')) {
-            await repo.stopLive(all: true);
-            // The next person to sign in on this phone must not see this khata.
-            repo.clearCache();
-            await auth.signOut();
-          }
-        },
       ),
     );
   }

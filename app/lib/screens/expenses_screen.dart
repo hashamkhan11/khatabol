@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../ui/common.dart';
+import '../ui/icons.dart';
 import '../ui/theme.dart';
 import '../util/format.dart';
 import 'home_screen.dart';
@@ -45,7 +46,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         actions: [
           ToggleAction(
             label: tr('Cancel shuda', 'Cancelled'),
-            icon: Icons.block_rounded,
+            icon: KIcons.cancelled,
             on: _showCancelled,
             onChanged: (v) => setState(() => _showCancelled = v),
           ),
@@ -54,7 +55,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _add,
-        icon: const Icon(Icons.add_rounded),
+        icon: const Icon(KIcons.add),
         label: Text(tr('Naya kharcha', 'New expense')),
       ),
       body: AsyncView<List<Expense>>(
@@ -72,34 +73,22 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               .where((e) => e.date.year == lastMonthStart.year && e.date.month == lastMonthStart.month)
               .fold<num>(0, (s, e) => s + e.amount);
 
-          final header = Container(
-            margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          final header = InkCard(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-            decoration: BoxDecoration(color: k.surface, borderRadius: BorderRadius.circular(22)),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(tr('Is mahine', 'This month'), style: Theme.of(context).textTheme.labelMedium),
-                      const SizedBox(height: 2),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Amount(thisMonth, size: 30, weight: FontWeight.w800),
-                      ),
-                    ],
+                  child: OnInkFigure(
+                    label: tr('Is mahine', 'This month'),
+                    value: Amount(thisMonth, size: 30, weight: FontWeight.w800, color: k.onInk),
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(tr('Pichle mahine', 'Last month'), style: Theme.of(context).textTheme.labelMedium),
-                    const SizedBox(height: 2),
-                    Amount(lastMonth, size: 16, color: k.muted),
-                  ],
+                const SizedBox(width: 12),
+                OnInkFigure(
+                  end: true,
+                  label: tr('Pichle mahine', 'Last month'),
+                  value: Amount(lastMonth, size: 16, color: k.onInk.withValues(alpha: 0.85)),
                 ),
               ],
             ),
@@ -113,7 +102,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               itemBuilder: (context, i) {
                 if (i == 0) return header;
                 if (list.isEmpty) {
-                  return EmptyState(icon: Icons.receipt_long_outlined, message: tr('Abhi koi kharcha nahi.', 'No expenses yet.'));
+                  return EmptyState(icon: KIcons.expenses, message: tr('Abhi koi kharcha nahi.', 'No expenses yet.'));
                 }
                 return days.build(i - 1, (e) => _ExpenseTile(expense: e, onTap: e.cancelled ? null : () => _cancel(e)));
               },
@@ -138,8 +127,8 @@ class _ExpenseTile extends StatelessWidget {
     final details = [if (e.paidToName != null) tr('${e.paidToName} ko dena hai', 'to pay ${e.paidToName}') else 'Cash', ?e.notes].join(' · ');
     return ListTile(
       onTap: onTap,
-      leading: e.cancelled ? const RowIconPlain(Icons.receipt_long_outlined) : RowIcon(
-        Icons.receipt_long_outlined,
+      leading: e.cancelled ? const RowIconPlain(KIcons.expenses) : RowIcon(
+        KIcons.expenses,
         color: k.dena,
         background: k.denaSoft,
       ),

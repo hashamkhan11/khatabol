@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/ledger_repository.dart';
 import '../data/models.dart';
 import '../util/format.dart';
+import 'icons.dart';
 import 'theme.dart';
 import '../l10n/lang.dart';
 
@@ -34,7 +35,8 @@ String errorText(Object error) {
     if (error.code == 'invalid_credentials' || error.message.contains('Invalid login credentials')) {
       return tr('Email ya password ghalat hai', 'Wrong email or password');
     }
-    return error.message;
+    final m = _authMessages[error.code] ?? (error.statusCode == '429' ? _authMessages['over_email_send_rate_limit'] : null);
+    return m == null ? error.message : tr(m.$1, m.$2);
   }
   final s = error.toString();
   if (s.contains('SocketException') || s.contains('ClientException') || s.contains('TimeoutException')) {
@@ -68,6 +70,17 @@ const _dbMessages = <String, (String, String)>{
   'settle the khata before archiving this party': ('Pehle hisaab barabar karein, phir party archive hogi', 'Settle the balance before archiving this party'),
   'stock must be zero before archiving this cloth type': ('Pehle stock zero karein, phir archive hoga', 'Stock must be zero before archiving this cloth type'),
   'stock adjustment not found or already cancelled': ('Stock ki line nahi mili ya pehle hi cancel hai', 'Stock line not found or already cancelled'),
+};
+
+const _authMessages = <String, (String, String)>{
+  'otp_expired': ('Code ghalat hai ya purana ho gaya. Naya code mangwayein.', 'The code is wrong or has expired. Ask for a new one.'),
+  'same_password': ('Naya password purane se alag rakhein', 'The new password must be different from the old one'),
+  'weak_password': ('Password kamzor hai. Lamba password rakhein, huroof aur number mila kar.', 'The password is too weak. Use a longer one with letters and numbers.'),
+  'over_email_send_rate_limit': ('Bohat dafa koshish ho gayi. Thori der baad dobara karein.', 'Too many tries. Wait a little and try again.'),
+  'over_request_rate_limit': ('Bohat dafa koshish ho gayi. Thori der baad dobara karein.', 'Too many tries. Wait a little and try again.'),
+  'email_address_invalid': ('Email sahi nahi lagti', 'That email does not look right'),
+  'validation_failed': ('Email sahi nahi lagti', 'That email does not look right'),
+  'session_not_found': ('Session khatam ho gaya. Dobara sign in karein.', 'The session has ended. Sign in again.'),
 };
 
 String _capitalise(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
@@ -232,7 +245,7 @@ class _OfflineBar extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
         child: Row(
           children: [
-            const Icon(Icons.cloud_off_rounded, color: Colors.white70, size: 20),
+            const Icon(KIcons.offline, color: Colors.white70, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Text(tr('Internet nahi. Purana hisaab dikh raha hai.', 'No internet. Showing saved data.'),
@@ -295,7 +308,7 @@ class _SkeletonListState extends State<SkeletonList> with SingleTickerProviderSt
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        Container(width: 40, height: 40, decoration: BoxDecoration(color: k.line, shape: BoxShape.circle)),
+                        Container(width: 40, height: 40, decoration: BoxDecoration(color: k.line, borderRadius: BorderRadius.circular(12))),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -338,7 +351,7 @@ class ErrorRetry extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.cloud_off_rounded, size: 44, color: KColors.of(context).muted),
+            Icon(KIcons.offline, size: 44, color: KColors.of(context).muted),
             const SizedBox(height: 16),
             Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge),
             const SizedBox(height: 20),
@@ -359,18 +372,30 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final k = KColors.of(context);
+    final primary = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.fromLTRB(32, 48, 32, 48),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(color: k.surface, shape: BoxShape.circle),
-            child: Icon(icon, size: 32, color: k.muted),
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              color: k.surface,
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: k.line),
+            ),
+            child: Center(
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(color: primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
+                child: Icon(icon, size: 26, color: primary),
+              ),
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           Text(message,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: k.muted, height: 1.4)),
@@ -446,44 +471,99 @@ class TotalsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final k = KColors.of(context);
-    Widget half(String label, num amount, Color color) => Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-                  const SizedBox(width: 6),
-                  Text(label, style: Theme.of(context).textTheme.labelMedium),
-                ]),
-                const SizedBox(height: 2),
-                Amount(amount, color: color, size: 19, weight: FontWeight.w800),
-              ],
-            ),
-          ),
-        );
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      decoration: BoxDecoration(color: k.surface, borderRadius: BorderRadius.circular(18)),
+    return InkCard(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       child: IntrinsicHeight(
         child: Row(children: [
-          half(tr('Kul lena', 'To receive'), toReceive, k.lena),
-          VerticalDivider(width: 1, indent: 14, endIndent: 14, color: k.line),
-          half(tr('Kul dena', 'To pay'), toPay, k.dena),
+          Expanded(
+            child: OnInkFigure(
+                label: tr('Kul lena', 'To receive'),
+                dot: k.lenaOnInk,
+                value: Amount(toReceive, color: k.onInk, size: 21, weight: FontWeight.w800)),
+          ),
+          VerticalDivider(width: 33, color: k.onInk.withValues(alpha: 0.16)),
+          Expanded(
+            child: OnInkFigure(
+                label: tr('Kul dena', 'To pay'),
+                dot: k.denaOnInk,
+                value: Amount(toPay, color: k.onInk, size: 21, weight: FontWeight.w800)),
+          ),
         ]),
       ),
     );
   }
 }
 
-/// A round badge with a party's initials, tinted by which way the money goes.
+/// The bold ink block that heads a screen, the same as the dashboard summary.
+class InkCard extends StatelessWidget {
+  const InkCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(20),
+    this.margin = const EdgeInsets.fromLTRB(16, 4, 16, 0),
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry margin;
+
+  @override
+  Widget build(BuildContext context) {
+    final k = KColors.of(context);
+    return Container(
+      margin: margin,
+      padding: padding,
+      decoration: BoxDecoration(color: k.ink, borderRadius: BorderRadius.circular(24)),
+      child: DefaultTextStyle.merge(style: TextStyle(color: k.onInk), child: child),
+    );
+  }
+}
+
+/// A small label (with an optional coloured dot) over a figure, on an [InkCard].
+class OnInkFigure extends StatelessWidget {
+  const OnInkFigure({super.key, required this.label, required this.value, this.dot, this.note, this.end = false});
+
+  final String label;
+  final Widget value;
+  final Color? dot;
+  final String? note;
+
+  /// Right-aligned, for the second figure in a row.
+  final bool end;
+
+  @override
+  Widget build(BuildContext context) {
+    final k = KColors.of(context);
+    final muted = k.onInk.withValues(alpha: 0.72);
+    return Column(
+      crossAxisAlignment: end ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          if (dot != null) ...[
+            Container(width: 8, height: 8, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
+            const SizedBox(width: 6),
+          ],
+          Flexible(child: Text(label, style: TextStyle(color: muted, fontWeight: FontWeight.w600, fontSize: 13.5))),
+        ]),
+        const SizedBox(height: 4),
+        FittedBox(fit: BoxFit.scaleDown, alignment: end ? Alignment.centerRight : Alignment.centerLeft, child: value),
+        if (note != null) Text(note!, style: TextStyle(color: muted, fontSize: 12.5, fontFeatures: tabular)),
+      ],
+    );
+  }
+}
+
+/// A rounded-square badge with a party's initials, tinted by which way the money goes.
 class PartyAvatar extends StatelessWidget {
-  const PartyAvatar({super.key, required this.name, this.balance = 0, this.size = 40});
+  const PartyAvatar({super.key, required this.name, this.balance = 0, this.size = 40, this.onInk = false});
 
   final String name;
   final num balance;
   final double size;
+
+  /// Drawn on an [InkCard].
+  final bool onInk;
 
   @override
   Widget build(BuildContext context) {
@@ -499,18 +579,21 @@ class PartyAvatar extends StatelessWidget {
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: k.softForBalance(balance), shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: onInk ? k.onInk.withValues(alpha: 0.14) : k.softForBalance(balance),
+        borderRadius: BorderRadius.circular(size * 0.32),
+      ),
       child: Text(initials,
           style: TextStyle(
             fontSize: size * 0.36,
             fontWeight: FontWeight.w800,
-            color: k.forBalance(balance),
+            color: onInk ? k.onInk : k.forBalance(balance),
           )),
     );
   }
 }
 
-/// A round icon badge for a list row.
+/// A rounded-square icon badge for a list row.
 class RowIcon extends StatelessWidget {
   const RowIcon(this.icon, {super.key, required this.color, required this.background, this.size = 40});
 
@@ -523,12 +606,12 @@ class RowIcon extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(color: background, shape: BoxShape.circle),
+        decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(size * 0.32)),
         child: Icon(icon, size: size * 0.5, color: color),
       );
 }
 
-/// A neutral round icon badge.
+/// A neutral icon badge.
 class RowIconPlain extends StatelessWidget {
   const RowIconPlain(this.icon, {super.key});
 
@@ -660,20 +743,33 @@ class InfoRow extends StatelessWidget {
 
 /// A big two-up action button, e.g. "Paise mile" / "Paise diye".
 class ActionButton extends StatelessWidget {
-  const ActionButton({super.key, required this.icon, required this.label, required this.color, required this.onTap});
+  const ActionButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.foreground = Colors.white,
+  });
 
   final IconData icon;
   final String label;
   final Color color;
+  final Color foreground;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: FilledButton.icon(
-        style: FilledButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white),
+        style: FilledButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: foreground,
+          minimumSize: const Size.fromHeight(50),
+          shape: const StadiumBorder(),
+        ),
         onPressed: onTap,
-        icon: Icon(icon, size: 20),
+        icon: Icon(icon, size: 18),
         label: Text(label),
       ),
     );
@@ -736,17 +832,28 @@ class FormPage extends StatelessWidget {
 // Dialogs
 // ---------------------------------------------------------------------------
 
-/// Asks a yes/no question. Returns true when confirmed.
-Future<bool> confirm(BuildContext context, {required String title, String? message, String action = 'OK'}) async {
-  final ok = await showDialog<bool>(
+/// Asks a yes/no question in a bottom sheet. Returns true when confirmed.
+Future<bool> confirm(
+  BuildContext context, {
+  required String title,
+  String? message,
+  String action = 'OK',
+  IconData? icon,
+  bool danger = false,
+}) async {
+  final k = KColors.of(context);
+  final ok = await showModalBottomSheet<bool>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
-      content: message == null ? null : Text(message, style: const TextStyle(height: 1.4)),
+    isScrollControlled: true,
+    builder: (context) => SheetBody(
+      icon: icon,
+      iconColor: danger ? k.dena : null,
+      title: title,
+      message: message,
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Wapas', 'Back'))),
+        OutlinedButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Wapas', 'Back'))),
         FilledButton(
-          style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+          style: danger ? FilledButton.styleFrom(backgroundColor: k.dena, foregroundColor: Colors.white) : null,
           onPressed: () => Navigator.pop(context, true),
           child: Text(action),
         ),
@@ -761,29 +868,191 @@ Future<bool> confirm(BuildContext context, {required String title, String? messa
 Future<String?> askCancelReason(BuildContext context, {required String title, required String message}) {
   final controller = TextEditingController();
   final k = KColors.of(context);
-  return showDialog<String>(
+  return showModalBottomSheet<String>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(message, style: const TextStyle(height: 1.4)),
-          const SizedBox(height: 16),
-          TextField(controller: controller, decoration: InputDecoration(labelText: tr('Wajah (agar ho)', 'Reason (optional)'))),
-        ],
-      ),
+    isScrollControlled: true,
+    builder: (context) => SheetBody(
+      icon: KIcons.cancelled,
+      iconColor: k.dena,
+      title: title,
+      message: message,
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Wapas', 'Back'))),
+        OutlinedButton(onPressed: () => Navigator.pop(context), child: Text(tr('Wapas', 'Back'))),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: k.dena, foregroundColor: Colors.white, minimumSize: const Size(0, 44)),
+          style: FilledButton.styleFrom(backgroundColor: k.dena, foregroundColor: Colors.white),
           onPressed: () => Navigator.pop(context, controller.text),
           child: Text(tr('Cancel karein', 'Cancel it')),
         ),
       ],
+      children: [
+        TextField(controller: controller, decoration: InputDecoration(labelText: tr('Wajah (agar ho)', 'Reason (optional)'))),
+      ],
     ),
   );
+}
+
+/// The layout every bottom sheet shares: an optional icon badge, a title and
+/// message, any content, and a row of buttons. Moves up above the keyboard.
+class SheetBody extends StatelessWidget {
+  const SheetBody({
+    super.key,
+    required this.title,
+    this.message,
+    this.icon,
+    this.iconColor,
+    this.children = const [],
+    this.actions = const [],
+  });
+
+  final String title;
+  final String? message;
+  final IconData? icon;
+  final Color? iconColor;
+  final List<Widget> children;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final k = KColors.of(context);
+    final color = iconColor ?? Theme.of(context).colorScheme.primary;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (icon != null) ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: RowIcon(icon!, size: 48, color: color, background: color.withValues(alpha: 0.12)),
+                ),
+                const SizedBox(height: 16),
+              ],
+              Text(title, style: Theme.of(context).textTheme.titleLarge),
+              if (message != null) ...[
+                const SizedBox(height: 6),
+                Text(message!, style: TextStyle(color: k.muted, height: 1.45, fontSize: 15)),
+              ],
+              for (final c in children) ...[const SizedBox(height: 16), c],
+              if (actions.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Row(children: [
+                  for (var i = 0; i < actions.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 12),
+                    Expanded(child: actions[i]),
+                  ],
+                ]),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One choice in an action sheet.
+class SheetAction<T> {
+  const SheetAction(this.value, this.label, this.icon, {this.danger = false, this.checked});
+
+  final T value;
+  final String label;
+  final IconData icon;
+  final bool danger;
+
+  /// Shows an on/off mark when set, for options that switch something.
+  final bool? checked;
+}
+
+/// A list of actions in a bottom sheet, in place of a pop-up menu.
+Future<T?> showActions<T>(BuildContext context, {String? title, required List<SheetAction<T>> actions}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    builder: (context) {
+      final k = KColors.of(context);
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (title != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                  child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+                ),
+              SheetGroup(children: [
+                for (final a in actions)
+                  ListTile(
+                    leading: RowIcon(a.icon,
+                        size: 38, color: a.danger ? k.dena : k.text, background: a.danger ? k.denaSoft : k.surface),
+                    title: Text(a.label, style: a.danger ? TextStyle(color: k.dena) : null),
+                    trailing: a.checked == null ? null : CheckMark(on: a.checked!),
+                    onTap: () => Navigator.pop(context, a.value),
+                  ),
+              ]),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+/// Rows grouped on a tinted panel inside a sheet.
+class SheetGroup extends StatelessWidget {
+  const SheetGroup({super.key, required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final k = KColors.of(context);
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(color: k.paper, borderRadius: BorderRadius.circular(18)),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0) const Divider(indent: 70, height: 1),
+              children[i],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A round tick: filled when on, an empty ring when off.
+class CheckMark extends StatelessWidget {
+  const CheckMark({super.key, required this.on});
+
+  final bool on;
+
+  @override
+  Widget build(BuildContext context) {
+    final k = KColors.of(context);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        color: on ? k.ink : Colors.transparent,
+        shape: BoxShape.circle,
+        border: Border.all(color: on ? k.ink : k.line, width: 2),
+      ),
+      child: on ? Icon(KIcons.check, size: 13, color: k.onInk) : null,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -813,7 +1082,7 @@ class DateField extends StatelessWidget {
         if (picked != null) onChanged(picked);
       },
       child: InputDecorator(
-        decoration: InputDecoration(labelText: label ?? tr('Tareekh', 'Date'), suffixIcon: const Icon(Icons.calendar_month_rounded, size: 20)),
+        decoration: InputDecoration(labelText: label ?? tr('Tareekh', 'Date'), suffixIcon: const Icon(KIcons.calendar, size: 20)),
         child: Text(day == formatDate(value) ? day : '$day · ${formatDate(value)}'),
       ),
     );
@@ -883,12 +1152,12 @@ class PartyField extends StatelessWidget {
         final picked = await showModalBottomSheet<_Pick>(
           context: context,
           isScrollControlled: true,
-          builder: (_) => _PartyPicker(parties: parties, allowNone: allowNone, noneLabel: none),
+          builder: (_) => _PartyPicker(title: label, parties: parties, allowNone: allowNone, noneLabel: none),
         );
         if (picked != null) onChanged(picked.id);
       },
       child: InputDecorator(
-        decoration: InputDecoration(labelText: label, suffixIcon: const Icon(Icons.expand_more_rounded)),
+        decoration: InputDecoration(labelText: label, suffixIcon: const Icon(KIcons.chevronDown, size: 18)),
         child: Text(selected?.name ?? (allowNone ? none : tr('Chunein…', 'Choose…')),
             style: selected == null ? TextStyle(color: Theme.of(context).hintColor) : null),
       ),
@@ -902,8 +1171,9 @@ class _Pick {
 }
 
 class _PartyPicker extends StatefulWidget {
-  const _PartyPicker({required this.parties, required this.allowNone, required this.noneLabel});
+  const _PartyPicker({required this.title, required this.parties, required this.allowNone, required this.noneLabel});
 
+  final String title;
   final List<Party> parties;
   final bool allowNone;
   final String noneLabel;
@@ -923,12 +1193,17 @@ class _PartyPickerState extends State<_PartyPicker> {
       child: SizedBox(
         height: MediaQuery.of(context).size.height * 0.75,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+              child: Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: TextField(
                 autofocus: true,
-                decoration: InputDecoration(prefixIcon: Icon(Icons.search_rounded), hintText: tr('Party talaash karein', 'Search parties')),
+                decoration: InputDecoration(prefixIcon: const Icon(KIcons.search, size: 20), hintText: tr('Party talaash karein', 'Search parties')),
                 onChanged: (s) => setState(() => _search = s),
               ),
             ),
@@ -937,7 +1212,7 @@ class _PartyPickerState extends State<_PartyPicker> {
                 children: [
                   if (widget.allowNone)
                     ListTile(
-                      leading: const RowIconPlain(Icons.payments_outlined),
+                      leading: const RowIconPlain(KIcons.cash),
                       title: Text(widget.noneLabel),
                       onTap: () => Navigator.pop(context, const _Pick(null)),
                     ),
@@ -950,12 +1225,163 @@ class _PartyPickerState extends State<_PartyPicker> {
                     ),
                   if (list.isEmpty)
                     EmptyState(
-                      icon: Icons.person_search_rounded,
+                      icon: KIcons.searchEmpty,
                       message: tr('Koi party nahi mili. Pehle Khata tab se party banayein.', 'No party found. Add one from the Parties tab first.'),
                     ),
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Picks one of a short list of options from a bottom sheet.
+class ChoiceField<T> extends StatelessWidget {
+  const ChoiceField({
+    super.key,
+    required this.label,
+    required this.options,
+    required this.value,
+    required this.onChanged,
+    this.helper,
+  });
+
+  final String label;
+  final List<(T, String)> options;
+  final T? value;
+  final ValueChanged<T> onChanged;
+  final String? helper;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = options.where((o) => o.$1 == value).firstOrNull;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: options.isEmpty
+          ? null
+          : () async {
+              final picked = await showModalBottomSheet<int>(
+                context: context,
+                isScrollControlled: true,
+                builder: (context) =>
+                    _ChoiceSheet(title: label, labels: [for (final o in options) o.$2], selected: current?.$2),
+              );
+              if (picked != null) onChanged(options[picked].$1);
+            },
+      child: InputDecorator(
+        isEmpty: current == null,
+        decoration: InputDecoration(
+          labelText: label,
+          helperText: helper,
+          helperMaxLines: 3,
+          suffixIcon: const Icon(KIcons.chevronDown, size: 18),
+        ),
+        child: Text(current?.$2 ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
+    );
+  }
+}
+
+class _ChoiceSheet extends StatelessWidget {
+  const _ChoiceSheet({required this.title, required this.labels, required this.selected});
+
+  final String title;
+  final List<String> labels;
+  final String? selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.75),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: SheetGroup(children: [
+                    for (var i = 0; i < labels.length; i++)
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                        title: Text(labels[i]),
+                        trailing: CheckMark(on: labels[i] == selected),
+                        onTap: () => Navigator.pop(context, i),
+                      ),
+                  ]),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Two or three side-by-side options with an ink highlight on the chosen one,
+/// e.g. Cash / Bank or the opening-balance direction.
+class Segments<T> extends StatelessWidget {
+  const Segments({super.key, required this.options, required this.selected, required this.onChanged});
+
+  final List<(T, String)> options;
+  final T selected;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final k = KColors.of(context);
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: k.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: k.line),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (value, label) in options)
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  selected: value == selected,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onChanged(value),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+                      decoration: BoxDecoration(
+                        color: value == selected ? k.ink : Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          height: 1.25,
+                          fontWeight: value == selected ? FontWeight.w700 : FontWeight.w600,
+                          color: value == selected ? k.onInk : k.muted,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -974,16 +1400,11 @@ class ItemField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      initialValue: items.any((i) => i.id == value) ? value : null,
-      borderRadius: BorderRadius.circular(14),
-      icon: const Icon(Icons.expand_more_rounded),
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: label ?? tr('Kapre ki qisam', 'Cloth type'),
-        helperText: items.isEmpty ? tr('Pehle Stock tab mein kapre ki qisam banayein', 'Add a cloth type in the Stock tab first') : null,
-      ),
-      items: [for (final i in items) DropdownMenuItem(value: i.id, child: Text(i.displayName, overflow: TextOverflow.ellipsis))],
+    return ChoiceField<String>(
+      label: label ?? tr('Kapre ki qisam', 'Cloth type'),
+      options: [for (final i in items) (i.id, i.displayName)],
+      value: value,
+      helper: items.isEmpty ? tr('Pehle Stock tab mein kapre ki qisam banayein', 'Add a cloth type in the Stock tab first') : null,
       onChanged: onChanged,
     );
   }
@@ -1047,15 +1468,15 @@ class LineIcon extends StatelessWidget {
   final bool cancelled;
 
   static IconData iconFor(String? kind) => switch (kind) {
-        'purchase' => Icons.move_to_inbox_rounded,
-        'sale' => Icons.local_shipping_outlined,
-        'commission' => Icons.handshake_outlined,
-        'payment_in' => Icons.south_west_rounded,
-        'payment_out' => Icons.north_east_rounded,
-        'expense' || 'deal_cost' => Icons.receipt_long_outlined,
-        'adjustment' => Icons.tune_rounded,
-        'reversal' => Icons.undo_rounded,
-        _ => Icons.history_rounded,
+        'purchase' => KIcons.purchase,
+        'sale' => KIcons.sale,
+        'commission' => KIcons.commission,
+        'payment_in' => KIcons.received,
+        'payment_out' => KIcons.paid,
+        'expense' || 'deal_cost' => KIcons.expenses,
+        'adjustment' => KIcons.adjustment,
+        'reversal' => KIcons.reversal,
+        _ => KIcons.history,
       };
 
   @override
@@ -1098,32 +1519,63 @@ class GroupedRow extends StatelessWidget {
   }
 }
 
-/// A row of filter chips that scrolls sideways when it does not fit.
+/// A row of pill-shaped filters that scrolls sideways when it does not fit,
+/// or wraps onto more lines with [wrap].
 class FilterChips<T> extends StatelessWidget {
-  const FilterChips({super.key, required this.options, required this.selected, required this.onSelected});
+  const FilterChips({super.key, required this.options, required this.selected, required this.onSelected, this.wrap = false});
 
   /// Value and label for each chip.
   final List<(T, String)> options;
   final T selected;
   final ValueChanged<T> onSelected;
+  final bool wrap;
 
   @override
   Widget build(BuildContext context) {
+    final pills = [
+      for (final (value, label) in options) _Pill(label: label, selected: value == selected, onTap: () => onSelected(value)),
+    ];
+    if (wrap) return Wrap(spacing: 8, runSpacing: 8, children: pills);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-        children: [
-          for (final (value, label) in options)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(label),
-                selected: value == selected,
-                onSelected: (_) => onSelected(value),
-              ),
-            ),
-        ],
+        children: [for (final p in pills) Padding(padding: const EdgeInsets.only(right: 8), child: p)],
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.label, required this.selected, required this.onTap});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final k = KColors.of(context);
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? k.ink : k.surface,
+        shape: StadiumBorder(side: BorderSide(color: selected ? k.ink : k.line)),
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            child: Text(label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: tabular,
+                  color: selected ? k.onInk : k.text,
+                )),
+          ),
+        ),
       ),
     );
   }
@@ -1193,7 +1645,7 @@ class FormHint extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(warn ? Icons.error_outline_rounded : Icons.info_outline_rounded, size: 20, color: color),
+          Icon(warn ? KIcons.warning : KIcons.info, size: 20, color: color),
           const SizedBox(width: 10),
           Expanded(child: Text(text, style: TextStyle(color: color, height: 1.4, fontSize: 14))),
         ],
@@ -1247,7 +1699,7 @@ class ToggleAction extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(on ? Icons.check_rounded : icon, size: 18, color: fg),
+                Icon(on ? KIcons.check : icon, size: 16, color: fg),
                 const SizedBox(width: 6),
                 Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 14)),
               ]),

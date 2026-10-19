@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/models.dart';
 import '../l10n/khata_text.dart';
 import '../ui/common.dart';
+import '../ui/icons.dart';
 import '../ui/theme.dart';
 import '../util/format.dart';
 import 'home_screen.dart';
@@ -93,7 +94,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _Tile(
-                          icon: profit < 0 ? Icons.trending_down_rounded : Icons.trending_up_rounded,
+                          icon: profit < 0 ? KIcons.profitDown : KIcons.profitUp,
                           iconColor: k.forBalance(profit),
                           label: profit < 0 ? tr('Is mahine ka nuqsan', 'Loss this month') : tr('Is mahine ka munafa', 'Profit this month'),
                           value: Amount(profit, color: k.forBalance(profit), size: 19, weight: FontWeight.w800),
@@ -102,7 +103,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(width: 12),
                         _Tile(
-                          icon: Icons.inventory_2_outlined,
+                          icon: KIcons.stock,
                           iconColor: Theme.of(context).colorScheme.primary,
                           label: tr('Stock haath mein', 'Stock in hand'),
                           value: Text(kg(stockKg),
@@ -131,7 +132,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
                 if (s.recent.isEmpty)
-                  EmptyState(icon: Icons.menu_book_outlined, message: tr('Abhi koi entry nahi.', 'No entries yet.'))
+                  EmptyState(icon: KIcons.ledger, message: tr('Abhi koi entry nahi.', 'No entries yet.'))
                 else
                   Section(
                     title: tr('Taaza hisaab', 'Latest entries'),
@@ -279,7 +280,7 @@ class _Tile extends StatelessWidget {
                 Row(children: [
                   Icon(icon, size: 20, color: iconColor),
                   const Spacer(),
-                  if (onTap != null) Icon(Icons.chevron_right_rounded, size: 20, color: k.muted),
+                  if (onTap != null) Icon(KIcons.chevronRight, size: 20, color: k.muted),
                 ]),
                 const SizedBox(height: 10),
                 Text(label, style: Theme.of(context).textTheme.labelMedium),

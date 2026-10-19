@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'icons.dart';
+
 /// KhataBol's look: ledger ink on paper.
 ///
 /// Indigo (dyed cloth, register ink) is the one brand colour. Green and the
@@ -83,6 +85,10 @@ class KColors extends ThemeExtension<KColors> {
 
   Color softForBalance(num balance) => balance > 0 ? lenaSoft : (balance < 0 ? denaSoft : line);
 
+  /// [forBalance] for text on an ink card.
+  Color onInkForBalance(num balance) =>
+      balance > 0 ? lenaOnInk : (balance < 0 ? denaOnInk : onInk.withValues(alpha: 0.72));
+
   @override
   KColors copyWith() => this;
 
@@ -131,9 +137,9 @@ ThemeData buildTheme(Brightness brightness) {
     labelSmall: t.labelSmall?.copyWith(fontWeight: FontWeight.w600, color: k.muted),
   );
 
-  final radius12 = BorderRadius.circular(12);
+  final radius14 = BorderRadius.circular(14);
   OutlineInputBorder border(Color c, [double w = 1]) =>
-      OutlineInputBorder(borderRadius: radius12, borderSide: BorderSide(color: c, width: w));
+      OutlineInputBorder(borderRadius: radius14, borderSide: BorderSide(color: c, width: w));
 
   return base.copyWith(
     extensions: [k],
@@ -142,6 +148,10 @@ ThemeData buildTheme(Brightness brightness) {
     canvasColor: k.paper,
     dividerColor: k.line,
     splashFactory: InkSparkle.splashFactory,
+    actionIconTheme: ActionIconThemeData(
+      backButtonIconBuilder: (_) => const Icon(KIcons.back, size: 22),
+      closeButtonIconBuilder: (_) => const Icon(KIcons.close, size: 22),
+    ),
     pageTransitionsTheme: const PageTransitionsTheme(builders: {
       TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
       TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
@@ -160,16 +170,17 @@ ThemeData buildTheme(Brightness brightness) {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       height: 68,
-      indicatorColor: scheme.primary.withValues(alpha: 0.12),
+      indicatorColor: k.ink,
+      indicatorShape: const StadiumBorder(),
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       labelTextStyle: WidgetStateProperty.resolveWith((s) => TextStyle(
             fontFamily: _font,
             fontSize: 12,
             fontWeight: s.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
-            color: s.contains(WidgetState.selected) ? scheme.primary : k.muted,
+            color: s.contains(WidgetState.selected) ? k.text : k.muted,
           )),
       iconTheme: WidgetStateProperty.resolveWith(
-          (s) => IconThemeData(size: 24, color: s.contains(WidgetState.selected) ? scheme.primary : k.muted)),
+          (s) => IconThemeData(size: 22, color: s.contains(WidgetState.selected) ? k.onInk : k.muted)),
     ),
     cardTheme: CardThemeData(
       color: k.surface,
@@ -205,15 +216,15 @@ ThemeData buildTheme(Brightness brightness) {
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(52),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: const StadiumBorder(),
         textStyle: const TextStyle(fontFamily: _font, fontSize: 16, fontWeight: FontWeight.w700),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(52),
-        side: BorderSide(color: k.line),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        side: BorderSide(color: k.line, width: 1.5),
+        shape: const StadiumBorder(),
         textStyle: const TextStyle(fontFamily: _font, fontSize: 16, fontWeight: FontWeight.w700),
       ),
     ),
@@ -223,32 +234,10 @@ ThemeData buildTheme(Brightness brightness) {
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: k.ink,
       foregroundColor: k.onInk,
-      elevation: 2,
-      highlightElevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      extendedTextStyle: const TextStyle(fontFamily: _font, fontSize: 15, fontWeight: FontWeight.w700),
-    ),
-    chipTheme: ChipThemeData(
-      backgroundColor: k.surface,
-      selectedColor: scheme.primary,
-      side: BorderSide(color: k.line),
+      elevation: 3,
+      highlightElevation: 5,
       shape: const StadiumBorder(),
-      showCheckmark: false,
-      labelStyle: TextStyle(fontFamily: _font, fontWeight: FontWeight.w600, color: k.text),
-      secondaryLabelStyle: TextStyle(fontFamily: _font, fontWeight: FontWeight.w700, color: scheme.onPrimary),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-    ),
-    segmentedButtonTheme: SegmentedButtonThemeData(
-      style: SegmentedButton.styleFrom(
-        backgroundColor: k.surface,
-        selectedBackgroundColor: scheme.primary,
-        selectedForegroundColor: scheme.onPrimary,
-        foregroundColor: k.text,
-        side: BorderSide(color: k.line),
-        textStyle: const TextStyle(fontFamily: _font, fontWeight: FontWeight.w600),
-        minimumSize: const Size(0, 46),
-      ).copyWith(visualDensity: VisualDensity.standard),
-      selectedIcon: const SizedBox.shrink(),
+      extendedTextStyle: const TextStyle(fontFamily: _font, fontSize: 15, fontWeight: FontWeight.w700),
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: k.surface,
@@ -256,6 +245,18 @@ ThemeData buildTheme(Brightness brightness) {
       showDragHandle: true,
       dragHandleColor: k.line,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    ),
+    datePickerTheme: DatePickerThemeData(
+      backgroundColor: k.surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      headerBackgroundColor: k.ink,
+      headerForegroundColor: k.onInk,
+      headerHeadlineStyle: const TextStyle(fontFamily: _font, fontSize: 28, fontWeight: FontWeight.w800),
+      dayShape: WidgetStateProperty.all(const CircleBorder()),
+      todayBorder: BorderSide(color: scheme.primary, width: 1.5),
+      rangeSelectionBackgroundColor: scheme.primary.withValues(alpha: 0.12),
+      cancelButtonStyle: TextButton.styleFrom(foregroundColor: k.muted),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: k.surface,

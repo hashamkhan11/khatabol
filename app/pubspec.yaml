@@ -1,7 +1,7 @@
 name: khatabol
 description: "KhataBol app: party khata, deals, stock, expenses and profit for small traders."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.10.7
@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   intl: ^0.20.3
+  phosphor_flutter: ^2.1.0
   shared_preferences: ^2.5.3
   supabase_flutter: ^2.18.3
 

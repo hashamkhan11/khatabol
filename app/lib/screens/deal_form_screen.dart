@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/deal_draft.dart';
 import '../data/models.dart';
 import '../ui/common.dart';
+import '../ui/icons.dart';
 import '../ui/theme.dart';
 import '../util/format.dart';
 import '../l10n/lang.dart';
@@ -169,10 +170,10 @@ class _DealFormState extends State<_DealForm> {
           onChanged: (v) => _update(() => d.paidNow = v),
         ),
         if ((d.paidNow ?? 0) > 0)
-          SegmentedButton<PaymentMethod>(
-            segments: [for (final m in PaymentMethod.values) ButtonSegment(value: m, label: Text(m.label))],
-            selected: {d.paidMethod},
-            onSelectionChanged: (s) => _update(() => d.paidMethod = s.first),
+          Segments<PaymentMethod>(
+            options: [for (final m in PaymentMethod.values) (m, m.label)],
+            selected: d.paidMethod,
+            onChanged: (m) => _update(() => d.paidMethod = m),
           ),
       ];
 
@@ -181,7 +182,7 @@ class _DealFormState extends State<_DealForm> {
           'Commission',
           trailing: TextButton.icon(
             onPressed: () => _update(() => d.commissions.add(CommissionDraft())),
-            icon: const Icon(Icons.add),
+            icon: const Icon(KIcons.add, size: 18),
             label: Text(tr('Aur', 'Add')),
           ),
         ),
@@ -203,7 +204,7 @@ class _DealFormState extends State<_DealForm> {
           tr('Izafi kharchay (kiraya, mazdoori…)', 'Extra costs (fare, labour…)'),
           trailing: TextButton.icon(
             onPressed: () => _update(() => d.costs.add(CostDraft())),
-            icon: const Icon(Icons.add),
+            icon: const Icon(KIcons.add, size: 18),
             label: Text(tr('Aur', 'Add')),
           ),
         ),
@@ -251,13 +252,12 @@ class _CommissionRow extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: from.contains(draft.partyId) ? draft.partyId : null,
-                    decoration: InputDecoration(labelText: tr('Kis se', 'From whom')),
-                    items: [
+                  child: ChoiceField<String>(
+                    label: tr('Kis se', 'From whom'),
+                    value: from.contains(draft.partyId) ? draft.partyId : null,
+                    options: [
                       for (final id in from)
-                        DropdownMenuItem(
-                            value: id, child: Text('${nameOf(id)} (${id == sellerId ? tr('bechne wala', 'seller') : tr('khareedne wala', 'buyer')})')),
+                        (id, '${nameOf(id)} (${id == sellerId ? tr('bechne wala', 'seller') : tr('khareedne wala', 'buyer')})'),
                     ],
                     onChanged: (v) {
                       draft.partyId = v;
@@ -265,19 +265,19 @@ class _CommissionRow extends StatelessWidget {
                     },
                   ),
                 ),
-                IconButton(onPressed: onRemove, icon: const Icon(Icons.close), tooltip: tr('Hatayein', 'Remove')),
+                IconButton(onPressed: onRemove, icon: const Icon(KIcons.close, size: 20), tooltip: tr('Hatayein', 'Remove')),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<CommissionMode>(
-                    initialValue: draft.mode,
-                    decoration: InputDecoration(labelText: tr('Kaise', 'How')),
-                    items: [for (final m in CommissionMode.values) DropdownMenuItem(value: m, child: Text(m.label))],
+                  child: ChoiceField<CommissionMode>(
+                    label: tr('Kaise', 'How'),
+                    value: draft.mode,
+                    options: [for (final m in CommissionMode.values) (m, m.label)],
                     onChanged: (m) {
-                      draft.mode = m!;
+                      draft.mode = m;
                       onChanged();
                     },
                   ),
@@ -346,7 +346,7 @@ class _CostRow extends StatelessWidget {
                     },
                   ),
                 ),
-                IconButton(onPressed: onRemove, icon: const Icon(Icons.close), tooltip: tr('Hatayein', 'Remove')),
+                IconButton(onPressed: onRemove, icon: const Icon(KIcons.close, size: 20), tooltip: tr('Hatayein', 'Remove')),
               ],
             ),
             const SizedBox(height: 12),
@@ -360,12 +360,12 @@ class _CostRow extends StatelessWidget {
               },
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: dealParties.contains(draft.chargedToId) ? draft.chargedToId : me,
-              decoration: InputDecoration(labelText: tr('Kis ke zimme', 'Charged to')),
-              items: [
-                DropdownMenuItem(value: me, child: Text(tr('Mere', 'Me'))),
-                for (final id in dealParties) DropdownMenuItem(value: id, child: Text(nameOf(id))),
+            ChoiceField<String>(
+              label: tr('Kis ke zimme', 'Charged to'),
+              value: dealParties.contains(draft.chargedToId) ? draft.chargedToId : me,
+              options: [
+                (me, tr('Mere', 'Me')),
+                for (final id in dealParties) (id, nameOf(id)),
               ],
               onChanged: (v) {
                 draft.chargedToId = v == me ? null : v;

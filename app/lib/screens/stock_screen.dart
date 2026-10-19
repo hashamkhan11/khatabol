@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../ui/common.dart';
+import '../ui/icons.dart';
 import '../ui/theme.dart';
 import '../util/format.dart';
 import 'deal_screen.dart';
@@ -32,7 +33,7 @@ class _StockScreenState extends State<StockScreen> {
         actions: [
           ToggleAction(
             label: 'Archive',
-            icon: Icons.archive_outlined,
+            icon: KIcons.archive,
             on: _showArchived,
             onChanged: (v) => setState(() => _showArchived = v),
           ),
@@ -41,7 +42,7 @@ class _StockScreenState extends State<StockScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _open(const ItemFormScreen()),
-        icon: const Icon(Icons.add_rounded),
+        icon: const Icon(KIcons.add),
         label: Text(tr('Kapre ki qisam', 'Cloth type')),
       ),
       body: AsyncView<List<StockRow>>(
@@ -56,47 +57,35 @@ class _StockScreenState extends State<StockScreen> {
             child: ListView(
               padding: const EdgeInsets.only(bottom: 96),
               children: [
-                Container(
-                  margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                InkCard(
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-                  decoration: BoxDecoration(color: k.surface, borderRadius: BorderRadius.circular(22)),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(tr('Kul stock', 'Total stock'), style: Theme.of(context).textTheme.labelMedium),
-                            const SizedBox(height: 2),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(kg(totalKg),
-                                  style: TextStyle(
-                                      fontSize: 30,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: -0.8,
-                                      fontFeatures: tabular,
-                                      color: totalKg < 0 ? k.dena : k.text)),
-                            ),
-                          ],
+                        child: OnInkFigure(
+                          label: tr('Kul stock', 'Total stock'),
+                          value: Text(kg(totalKg),
+                              style: TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.8,
+                                  fontFeatures: tabular,
+                                  color: totalKg < 0 ? k.denaOnInk : k.onInk)),
                         ),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(tr('Qeemat', 'Value'), style: Theme.of(context).textTheme.labelMedium),
-                          const SizedBox(height: 2),
-                          Amount(totalValue, size: 17),
-                        ],
+                      const SizedBox(width: 12),
+                      OnInkFigure(
+                        end: true,
+                        label: tr('Qeemat', 'Value'),
+                        value: Amount(totalValue, size: 17, color: k.onInk),
                       ),
                     ],
                   ),
                 ),
                 if (rows.isEmpty)
                   EmptyState(
-                    icon: Icons.inventory_2_outlined,
+                    icon: KIcons.stock,
                     message: tr('Abhi kapre ki koi qisam nahi.\nJo maal aap bechte hain woh shamil karein, jaise “Purana kapra”.', 'No cloth types yet.\nAdd the goods you trade, like “Used cloth”.'),
                   )
                 else
@@ -106,7 +95,7 @@ class _StockScreenState extends State<StockScreen> {
                       for (final r in rows)
                         ListTile(
                           onTap: () => _open(StockItemScreen(row: r)),
-                          leading: RowIcon(Icons.checkroom_rounded,
+                          leading: RowIcon(KIcons.cloth,
                               color: primary, background: primary.withValues(alpha: 0.1)),
                           title: Text(r.item.displayName, maxLines: 2, overflow: TextOverflow.ellipsis),
                           subtitle: Text(r.avgCost == null ? tr('Abhi koi khareed nahi', 'No purchases yet') : '${tr('Ausat', 'Avg')} ${money(r.avgCost!)}/kg'),
@@ -194,7 +183,6 @@ class _StockItemScreenState extends State<StockItemScreen> {
   @override
   Widget build(BuildContext context) {
     final k = KColors.of(context);
-    final primary = Theme.of(context).colorScheme.primary;
     return AsyncView<(StockRow, List<StockMove>)>(
       cacheKey: 'stock:${widget.row.itemId}',
       load: _load,
@@ -205,14 +193,20 @@ class _StockItemScreenState extends State<StockItemScreen> {
         return Scaffold(
           appBar: AppBar(
             actions: [
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert_rounded),
-                itemBuilder: (_) => [
-                  PopupMenuItem(value: 'edit', child: Text(tr('Naam badlein', 'Rename'))),
-                  PopupMenuItem(value: 'archive', child: Text(row.archived ? tr('Wapas laayein', 'Restore') : tr('Archive karein', 'Archive'))),
-                ],
-                onSelected: (v) => v == 'edit' ? _open(ItemFormScreen(item: row.item)) : _toggleArchive(row),
+              IconButton(
+                tooltip: tr('Aur', 'More'),
+                icon: const Icon(KIcons.more),
+                onPressed: () async {
+                  final v = await showActions<String>(context, title: row.item.displayName, actions: [
+                    SheetAction('edit', tr('Naam badlein', 'Rename'), KIcons.edit),
+                    SheetAction('archive', row.archived ? tr('Wapas laayein', 'Restore') : tr('Archive karein', 'Archive'),
+                        KIcons.archive, danger: !row.archived),
+                  ]);
+                  if (v == 'edit') _open(ItemFormScreen(item: row.item));
+                  if (v == 'archive') _toggleArchive(row);
+                },
               ),
+              const SizedBox(width: 4),
             ],
           ),
           body: RefreshIndicator(
@@ -222,21 +216,22 @@ class _StockItemScreenState extends State<StockItemScreen> {
               itemCount: 3 + (days.rows.isEmpty ? 1 : days.rows.length),
               itemBuilder: (context, i) {
                 if (i == 0) {
-                  return Container(
+                  final muted = k.onInk.withValues(alpha: 0.72);
+                  return InkCard(
                     margin: const EdgeInsets.symmetric(horizontal: 16),
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(color: k.surface, borderRadius: BorderRadius.circular(24)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(children: [
-                          RowIcon(Icons.checkroom_rounded,
-                              size: 52, color: primary, background: primary.withValues(alpha: 0.1)),
+                          RowIcon(KIcons.cloth, size: 52, color: k.onInk, background: k.onInk.withValues(alpha: 0.14)),
                           const SizedBox(width: 14),
-                          Expanded(child: Text(row.item.displayName, style: Theme.of(context).textTheme.titleLarge)),
+                          Expanded(
+                            child: Text(row.item.displayName,
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(color: k.onInk, fontWeight: FontWeight.w800)),
+                          ),
                         ]),
-                        const SizedBox(height: 20),
-                        Text(tr('Haath mein', 'In hand'), style: Theme.of(context).textTheme.labelMedium),
+                        const SizedBox(height: 22),
+                        Text(tr('Haath mein', 'In hand'), style: TextStyle(color: muted, fontWeight: FontWeight.w600, fontSize: 13.5)),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
@@ -246,29 +241,30 @@ class _StockItemScreenState extends State<StockItemScreen> {
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -0.8,
                                 fontFeatures: tabular,
-                                color: row.weightKg < 0 ? k.dena : k.text,
+                                color: row.weightKg < 0 ? k.denaOnInk : k.onInk,
                               )),
                         ),
                         Text(
                           [money(row.stockValue), if (row.avgCost != null) '${tr('ausat', 'avg')} ${money(row.avgCost!)}/kg'].join(' · '),
-                          style: TextStyle(color: k.muted, fontFeatures: tabular),
+                          style: TextStyle(color: muted, fontFeatures: tabular),
                         ),
                         if (!row.archived) ...[
                           const SizedBox(height: 20),
                           Row(children: [
                             ActionButton(
-                              icon: Icons.add_rounded,
+                              icon: KIcons.add,
                               label: tr('Stock aaya', 'Stock in'),
-                              color: k.ink,
+                              color: k.onInk,
+                              foreground: k.ink,
                               onTap: () => _open(StockAdjustmentScreen(item: row.item, incoming: true)),
                             ),
                             const SizedBox(width: 12),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () => _open(StockAdjustmentScreen(item: row.item, incoming: false)),
-                                icon: const Icon(Icons.remove_rounded, size: 20),
-                                label: Text(tr('Stock gaya', 'Stock out')),
-                              ),
+                            ActionButton(
+                              icon: KIcons.remove,
+                              label: tr('Stock gaya', 'Stock out'),
+                              color: k.onInk.withValues(alpha: 0.14),
+                              foreground: k.onInk,
+                              onTap: () => _open(StockAdjustmentScreen(item: row.item, incoming: false)),
                             ),
                           ]),
                         ],
@@ -288,7 +284,7 @@ class _StockItemScreenState extends State<StockItemScreen> {
                 }
                 if (i == 2) return const SectionTitle('Stock register');
                 if (days.rows.isEmpty) {
-                  return EmptyState(icon: Icons.inventory_2_outlined, message: tr('Abhi koi aamad ya nikasi nahi.', 'No stock in or out yet.'));
+                  return EmptyState(icon: KIcons.stock, message: tr('Abhi koi aamad ya nikasi nahi.', 'No stock in or out yet.'));
                 }
                 return days.build(i - 3, (m) => _MoveTile(move: m, onTap: () => _onMoveTap(m)));
               },
@@ -323,7 +319,7 @@ class _MoveTile extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       leading: RowIcon(
-        incoming ? Icons.south_west_rounded : Icons.north_east_rounded,
+        incoming ? KIcons.received : KIcons.paid,
         color: incoming ? primary : k.muted,
         background: incoming ? primary.withValues(alpha: 0.1) : k.paper,
       ),
@@ -465,13 +461,11 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
       onSave: _save,
       children: [
         FieldLabel(tr('Kyun?', 'Why?')),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            for (final k in _kinds)
-              ChoiceChip(label: Text(k.label), selected: _kind == k, onSelected: (_) => setState(() => _kind = k)),
-          ],
+        FilterChips<StockAdjustmentKind>(
+          wrap: true,
+          options: [for (final k in _kinds) (k, k.label)],
+          selected: _kind,
+          onSelected: (k) => setState(() => _kind = k),
         ),
         NumberField(label: tr('Wazan', 'Weight'), suffix: 'kg', autofocus: true, onChanged: (v) => _weight = v),
         if (widget.incoming)

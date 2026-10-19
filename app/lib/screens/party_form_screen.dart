@@ -91,11 +91,11 @@ class _PartyFormScreenState extends State<PartyFormScreen> {
           textCapitalization: TextCapitalization.words,
           decoration: InputDecoration(labelText: tr('Naam', 'Name')),
         ),
-        DropdownButtonFormField<PartyType>(
-          initialValue: _type,
-          decoration: InputDecoration(labelText: tr('Qisam', 'Type')),
-          items: [for (final t in PartyType.values) DropdownMenuItem(value: t, child: Text(t.label))],
-          onChanged: (t) => setState(() => _type = t!),
+        ChoiceField<PartyType>(
+          label: tr('Qisam', 'Type'),
+          options: [for (final t in PartyType.values) (t, t.label)],
+          value: _type,
+          onChanged: (t) => setState(() => _type = t),
         ),
         TextField(
           controller: _phone,
@@ -122,14 +122,14 @@ class _PartyFormScreenState extends State<PartyFormScreen> {
         ),
         if (!_editing) ...[
           FieldLabel(tr('Purana hisaab (is app se pehle ka khata)', 'Opening balance (from before this app)')),
-          SegmentedButton<_Opening>(
-            segments: [
-              ButtonSegment(value: _Opening.none, label: Text(tr('Koi nahi', 'None'))),
-              ButtonSegment(value: _Opening.owesYou, label: Text(tr('Lena hai', 'To receive'))),
-              ButtonSegment(value: _Opening.youOwe, label: Text(tr('Dena hai', 'To pay'))),
+          Segments<_Opening>(
+            options: [
+              (_Opening.none, tr('Koi nahi', 'None')),
+              (_Opening.owesYou, tr('Lena hai', 'To receive')),
+              (_Opening.youOwe, tr('Dena hai', 'To pay')),
             ],
-            selected: {_opening},
-            onSelectionChanged: (s) => setState(() => _opening = s.first),
+            selected: _opening,
+            onChanged: (o) => setState(() => _opening = o),
           ),
           if (_opening != _Opening.none) ...[
             NumberField(label: tr('Raqam', 'Amount'), suffix: 'Rs', onChanged: (v) => _openingAmount = v),

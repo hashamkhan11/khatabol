@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../ui/common.dart';
+import '../ui/icons.dart';
 import 'home_screen.dart';
 import 'party_form_screen.dart';
 import 'party_screen.dart';
@@ -33,7 +34,7 @@ class _PartiesScreenState extends State<PartiesScreen> {
         actions: [
           ToggleAction(
             label: 'Archive',
-            icon: Icons.archive_outlined,
+            icon: KIcons.archive,
             on: _showArchived,
             onChanged: (v) => setState(() => _showArchived = v),
           ),
@@ -42,7 +43,7 @@ class _PartiesScreenState extends State<PartiesScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _open(const PartyFormScreen()),
-        icon: const Icon(Icons.person_add_alt_1_rounded),
+        icon: const Icon(KIcons.addPerson),
         label: Text(tr('Nayi party', 'New party')),
       ),
       body: AsyncView<List<PartyBalance>>(
@@ -74,7 +75,7 @@ class _PartiesScreenState extends State<PartiesScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
               child: TextField(
                 decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.search_rounded),
+                  prefixIcon: Icon(KIcons.search),
                   hintText: tr('Naam ya shehar talaash karein', 'Search name or city'),
                 ),
                 onChanged: (s) => setState(() => _search = s),
@@ -103,10 +104,10 @@ class _PartiesScreenState extends State<PartiesScreen> {
                 if (list.isEmpty) {
                   return all.isEmpty
                       ? EmptyState(
-                          icon: Icons.people_outline_rounded,
+                          icon: KIcons.people,
                           message: tr('Abhi koi party nahi.\nApne supplier, gahak aur transporter shamil karein.', 'No parties yet.\nAdd your suppliers, buyers and transporters.'),
                         )
-                      : EmptyState(icon: Icons.search_off_rounded, message: tr('Koi party nahi mili.', 'No party found.'));
+                      : EmptyState(icon: KIcons.searchEmpty, message: tr('Koi party nahi mili.', 'No party found.'));
                 }
                 final n = i - header.length;
                 final p = list[n];

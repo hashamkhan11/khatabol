@@ -4,6 +4,7 @@ import '../data/deal_draft.dart';
 import '../data/models.dart';
 import '../l10n/khata_text.dart';
 import '../ui/common.dart';
+import '../ui/icons.dart';
 import '../ui/theme.dart';
 import '../util/format.dart';
 import 'deal_form_screen.dart';
@@ -175,16 +176,15 @@ class _Header extends StatelessWidget {
       if (deal.weightKg != null) kg(deal.weightKg!),
       if (deal.rate != null) '${money(deal.rate!)} ${tr('fi kg', 'per kg')}',
     ].join(' · ');
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-      decoration: BoxDecoration(color: k.surface, borderRadius: BorderRadius.circular(24)),
+    final muted = k.onInk.withValues(alpha: 0.72);
+    return InkCard(
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              DealIcon(deal.kind, cancelled: deal.cancelled, size: 52),
+              RowIcon(dealIcon(deal.kind), size: 52, color: k.onInk, background: k.onInk.withValues(alpha: 0.14)),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -193,48 +193,56 @@ class _Header extends StatelessWidget {
                     Text(deal.partyName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: text.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                        style: text.titleLarge?.copyWith(color: k.onInk, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 2),
-                    Text('${deal.kind.label} · ${dayLabel(deal.date)}', style: TextStyle(color: k.muted)),
+                    Text('${deal.kind.label} · ${dayLabel(deal.date)}', style: TextStyle(color: muted)),
                   ],
                 ),
               ),
             ],
           ),
           if (deal.goodsAmount != null) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: 22),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Amount(deal.goodsAmount!,
-                  size: 34, weight: FontWeight.w800, color: deal.cancelled ? k.muted : null),
+                  size: 34,
+                  weight: FontWeight.w800,
+                  color: deal.cancelled ? muted : k.onInk),
             ),
           ],
           if (summary.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text(summary, style: TextStyle(color: k.muted, fontFeatures: tabular)),
+            Text(summary, style: TextStyle(color: muted, fontFeatures: tabular)),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           if (deal.cancelled)
-            FormHint('${tr('Cancel shuda', 'Cancelled')}${deal.cancelReason == null ? '' : ': ${deal.cancelReason}'}', warn: true)
+            Row(children: [
+              Icon(KIcons.cancelled, size: 18, color: k.denaOnInk),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('${tr('Cancel shuda', 'Cancelled')}${deal.cancelReason == null ? '' : ': ${deal.cancelReason}'}',
+                    style: TextStyle(color: k.denaOnInk, fontWeight: FontWeight.w600)),
+              ),
+            ])
           else
             Row(
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onEdit,
-                    icon: const Icon(Icons.edit_outlined, size: 20),
-                    label: Text(tr('Badlein', 'Edit')),
-                  ),
+                ActionButton(
+                  icon: KIcons.edit,
+                  label: tr('Badlein', 'Edit'),
+                  color: k.onInk,
+                  foreground: k.ink,
+                  onTap: onEdit ?? () {},
                 ),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onCancel,
-                    style: OutlinedButton.styleFrom(foregroundColor: k.dena),
-                    icon: const Icon(Icons.block_rounded, size: 20),
-                    label: const Text('Cancel'),
-                  ),
+                ActionButton(
+                  icon: KIcons.cancelled,
+                  label: 'Cancel',
+                  color: k.onInk.withValues(alpha: 0.14),
+                  foreground: k.denaOnInk,
+                  onTap: onCancel ?? () {},
                 ),
               ],
             ),
