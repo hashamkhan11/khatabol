@@ -15,9 +15,16 @@ String plainNumber(num value) => _money.format(value);
 
 String kg(num value) => '${_weight.format(value)} kg';
 
-String formatDate(DateTime d) => _date.format(d);
+/// "17 Oct" this year, "17 Oct 2025" for older dates.
+String formatDate(DateTime d) => d.year == DateTime.now().year ? _shortDate.format(d) : _date.format(d);
 
 String formatShortDate(DateTime d) => _shortDate.format(d);
+
+const _urduDays = ['Peer', 'Mangal', 'Budh', 'Jumeraat', 'Juma', 'Hafta', 'Itwaar'];
+
+/// "Peer, 19 October" in Roman Urdu, "Monday, 19 October" in English.
+String longDayDate(DateTime d) =>
+    isEnglish ? DateFormat('EEEE, d MMMM').format(d) : '${_urduDays[d.weekday - 1]}, ${DateFormat('d MMMM').format(d)}';
 
 /// Dates go to the database as 'YYYY-MM-DD' (no time, no timezone).
 String isoDate(DateTime d) =>

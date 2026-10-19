@@ -63,15 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: k.onInk.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: Icon(Icons.menu_book_rounded, size: 30, color: k.onInk),
-                          ),
+                          const KhataBolMark(size: 60),
                           const SizedBox(height: 28),
                           Text('KhataBol',
                               style: theme.textTheme.displaySmall
@@ -116,6 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     controller: _password,
                                     obscureText: _hidePassword,
                                     autofillHints: const [AutofillHints.password],
+                                    textInputAction: TextInputAction.done,
                                     onSubmitted: (_) => _signIn(),
                                     decoration: InputDecoration(
                                       labelText: 'Password',

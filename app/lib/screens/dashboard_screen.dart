@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../data/models.dart';
 import '../l10n/khata_text.dart';
@@ -59,7 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(DateFormat('EEEE, d MMMM').format(DateTime.now()),
+            Text(longDayDate(DateTime.now()),
                 style: TextStyle(fontSize: 13, color: k.muted, fontWeight: FontWeight.w600)),
             Text(tr('Khulasa', 'Summary')),
           ],

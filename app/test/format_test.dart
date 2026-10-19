@@ -23,6 +23,20 @@ void main() {
     expect(parseNumber(null), isNull);
   });
 
+  test('formatDate leaves out the year only for this year', () {
+    final now = DateTime.now();
+    expect(formatDate(DateTime(now.year, 3, 7)), '7 Mar');
+    expect(formatDate(DateTime(now.year - 1, 3, 7)), '7 Mar ${now.year - 1}');
+  });
+
+  test('longDayDate names the weekday in the chosen language', () {
+    final monday = DateTime(2026, 10, 19);
+    expect(longDayDate(monday), 'Peer, 19 October');
+    appLang.value = AppLang.english;
+    addTearDown(() => appLang.value = AppLang.romanUrdu);
+    expect(longDayDate(monday), 'Monday, 19 October');
+  });
+
   test('isoDate pads month and day', () {
     expect(isoDate(DateTime(2026, 3, 7)), '2026-03-07');
   });

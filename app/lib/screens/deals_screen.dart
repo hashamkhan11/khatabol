@@ -87,10 +87,11 @@ class _DealsScreenState extends State<DealsScreen> {
       appBar: AppBar(
         title: Text(tr('Sauday', 'Deals')),
         actions: [
-          IconButton(
-            tooltip: _showCancelled ? tr('Cancel shuda chhupayein', 'Hide cancelled') : tr('Cancel shuda dikhayein', 'Show cancelled'),
-            icon: Icon(_showCancelled ? Icons.visibility_rounded : Icons.visibility_off_outlined),
-            onPressed: () => setState(() => _showCancelled = !_showCancelled),
+          ToggleAction(
+            label: tr('Cancel shuda', 'Cancelled'),
+            icon: Icons.block_rounded,
+            on: _showCancelled,
+            onChanged: (v) => setState(() => _showCancelled = v),
           ),
           const AccountMenuButton(),
         ],

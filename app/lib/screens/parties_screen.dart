@@ -31,10 +31,11 @@ class _PartiesScreenState extends State<PartiesScreen> {
       appBar: AppBar(
         title: Text(_showArchived ? 'Archive' : tr('Khata', 'Parties')),
         actions: [
-          IconButton(
-            tooltip: _showArchived ? tr('Archive chhupayein', 'Hide archive') : tr('Archive dikhayein', 'Show archive'),
-            icon: Icon(_showArchived ? Icons.unarchive_outlined : Icons.archive_outlined),
-            onPressed: () => setState(() => _showArchived = !_showArchived),
+          ToggleAction(
+            label: 'Archive',
+            icon: Icons.archive_outlined,
+            on: _showArchived,
+            onChanged: (v) => setState(() => _showArchived = v),
           ),
           const AccountMenuButton(),
         ],

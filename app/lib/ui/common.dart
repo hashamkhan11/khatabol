@@ -29,14 +29,22 @@ String errorText(Object error) {
     final m = _dbMessages[error.message];
     return m == null ? _capitalise(error.message) : tr(m.$1, m.$2);
   }
-  if (error is AuthException) return error.message;
-  final s = error.toString();
-  if (s.contains('SocketException') || s.contains('ClientException')) {
-    return tr('Internet nahi chal raha. Connection check kar ke dobara koshish karein.',
-        'No internet. Check the connection and try again.');
+  if (error is AuthRetryableFetchException) return _noInternet();
+  if (error is AuthException) {
+    if (error.code == 'invalid_credentials' || error.message.contains('Invalid login credentials')) {
+      return tr('Email ya password ghalat hai', 'Wrong email or password');
+    }
+    return error.message;
   }
-  return s;
+  final s = error.toString();
+  if (s.contains('SocketException') || s.contains('ClientException') || s.contains('TimeoutException')) {
+    return _noInternet();
+  }
+  return s.replaceFirst('Exception: ', '');
 }
+
+String _noInternet() => tr('Internet nahi chal raha. Connection check kar ke dobara koshish karein.',
+    'No internet. Check the connection and try again.');
 
 const _dbMessages = <String, (String, String)>{
   'party not found': ('Party nahi mili', 'Party not found'),
@@ -1205,4 +1213,93 @@ class FieldLabel extends StatelessWidget {
         padding: const EdgeInsets.only(left: 4),
         child: Text(text, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: KColors.of(context).muted)),
       );
+}
+
+// ---------------------------------------------------------------------------
+// App bar toggle
+// ---------------------------------------------------------------------------
+
+/// A labelled on/off pill for the app bar, such as "Archive" or "Cancel shuda".
+/// A bare icon was hard to read; the word says what it shows.
+class ToggleAction extends StatelessWidget {
+  const ToggleAction({super.key, required this.label, required this.icon, required this.on, required this.onChanged});
+
+  final String label;
+  final IconData icon;
+  final bool on;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final k = KColors.of(context);
+    final fg = on ? k.onInk : k.ink;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Semantics(
+        button: true,
+        toggled: on,
+        child: Material(
+          color: on ? k.ink : Colors.transparent,
+          shape: StadiumBorder(side: BorderSide(color: on ? k.ink : k.line)),
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: () => onChanged(!on),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(on ? Icons.check_rounded : icon, size: 18, color: fg),
+                const SizedBox(width: 6),
+                Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 14)),
+              ]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The app mark: a ledger page shaped like a chat bubble, same as the launcher icon.
+class KhataBolMark extends StatelessWidget {
+  const KhataBolMark({super.key, this.size = 56});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) =>
+      SizedBox.square(dimension: size, child: CustomPaint(painter: _MarkPainter()));
+}
+
+class _MarkPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Drawn on the icon's 108-unit grid; the mark spans x 30..78, y 26..81.
+    final scale = size.width / 56;
+    canvas
+      ..scale(scale)
+      ..translate(-26, -25.5);
+    final bubble = Path()
+      ..addRRect(RRect.fromLTRBR(30, 26, 78, 72, const Radius.circular(8)))
+      ..moveTo(37, 70)
+      ..lineTo(37, 81)
+      ..lineTo(48, 72)
+      ..close();
+    canvas.drawPath(bubble, Paint()..color = Colors.white);
+    canvas.drawLine(const Offset(40, 27), const Offset(40, 71),
+        Paint()
+          ..color = const Color(0x8CE5484D)
+          ..strokeWidth = 1.6);
+    final line = Paint()
+      ..color = const Color(0xFF243282)
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+    canvas
+      ..drawLine(const Offset(46, 39), const Offset(70, 39), line)
+      ..drawLine(const Offset(46, 49), const Offset(70, 49), line)
+      ..drawLine(const Offset(46, 59), const Offset(61, 59), line)
+      ..drawCircle(const Offset(70, 59), 4, Paint()..color = const Color(0xFF1F9D6B));
+  }
+
+  @override
+  bool shouldRepaint(_MarkPainter oldDelegate) => false;
 }

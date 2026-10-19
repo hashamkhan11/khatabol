@@ -43,10 +43,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       appBar: AppBar(
         title: Text(tr('Kharchay', 'Expenses')),
         actions: [
-          IconButton(
-            tooltip: _showCancelled ? tr('Cancel shuda chhupayein', 'Hide cancelled') : tr('Cancel shuda dikhayein', 'Show cancelled'),
-            icon: Icon(_showCancelled ? Icons.visibility_rounded : Icons.visibility_off_outlined),
-            onPressed: () => setState(() => _showCancelled = !_showCancelled),
+          ToggleAction(
+            label: tr('Cancel shuda', 'Cancelled'),
+            icon: Icons.block_rounded,
+            on: _showCancelled,
+            onChanged: (v) => setState(() => _showCancelled = v),
           ),
           const AccountMenuButton(),
         ],
